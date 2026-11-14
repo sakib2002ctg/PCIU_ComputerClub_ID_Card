@@ -1,0 +1,1851 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PCIU Computer Club - ID Card Studio & Canva Blueprint</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --pciu-dark-green: #1E6B32;
+      --pciu-green: #58B947;
+      --pciu-mint: #E2F4DF;
+      --pciu-navy: #0B4B84;
+      --pciu-cyan: #2997D6;
+      --pciu-gold: #E5A93C;
+    }
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background-color: #f1f5f9;
+    }
+    .font-heading {
+      font-family: 'Montserrat', sans-serif;
+    }
+    .font-mono-tech {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    /* Standard CR80 Portrait Aspect Ratio (54mm x 85.6mm -> scaled to 340px x 540px) */
+    .id-card-canvas {
+      width: 340px;
+      height: 540px;
+      position: relative;
+      overflow: hidden;
+      background: #ffffff;
+      border-radius: 16px;
+      box-shadow: 0 20px 35px -10px rgba(30, 107, 50, 0.18), 0 4px 12px rgba(0,0,0,0.06);
+      user-select: none;
+      flex-shrink: 0;
+    }
+    /* Lanyard slot punch hole indicator */
+    .lanyard-slot {
+      width: 48px;
+      height: 10px;
+      border-radius: 999px;
+      background: #e2e8f0;
+      box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
+      position: absolute;
+      top: 14px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 40;
+    }
+    .circuit-pattern {
+      background-image: radial-gradient(#58B947 1px, transparent 1px), radial-gradient(#1E6B32 1px, transparent 1px);
+      background-size: 20px 20px;
+      background-position: 0 0, 10px 10px;
+      opacity: 0.07;
+    }
+    @media print {
+      .no-print { display: none !important; }
+      body { background: white; }
+      .print-area {
+        display: flex !important;
+        gap: 24px !important;
+        justify-content: center !important;
+        align-items: center !important;
+        padding: 20px !important;
+      }
+      .id-card-canvas {
+        box-shadow: none !important;
+        border: 1px solid #cbd5e1 !important;
+        page-break-inside: avoid;
+      }
+    }
+  </style>
+</head>
+<body class="min-h-screen text-slate-800 flex flex-col">
+
+  <!-- Top Navigation Bar -->
+  <header class="no-print bg-white border-b border-slate-200 sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-[#58B947] to-[#0B4B84] flex items-center justify-center text-white font-heading font-extrabold text-lg shadow-sm">
+          PC
+        </div>
+        <div>
+          <h1 class="font-heading font-bold text-slate-900 text-base sm:text-lg leading-tight">
+            PCIU Computer Club — ID Card Studio
+          </h1>
+          <p class="text-xs text-slate-500">Balanced Green & Blue Club Palette (60% Green / 40% Blue) • 4 Designs</p>
+        </div>
+      </div>
+
+      <!-- Mode Switcher & Export Buttons -->
+      <div class="flex items-center gap-2 sm:gap-2.5 flex-wrap">
+        <button onclick="switchTab('studio')" id="tabBtn-studio" class="px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold bg-[#0B4B84] text-white transition">
+          Live Card Designer
+        </button>
+        <button onclick="switchTab('canva')" id="tabBtn-canva" class="px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200 transition">
+          Canva Guide & Hex Codes
+        </button>
+        <button onclick="openCanvaModal()" class="px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold bg-[#7D2AE8] hover:bg-[#681TC6] text-white shadow-sm flex items-center gap-1.5 transition">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+          <span>Transfer to Canva</span>
+        </button>
+        <button onclick="downloadPDF()" id="downloadPdfBtn" class="px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold bg-gradient-to-r from-[#58B947] via-[#1D9A8C] to-[#0B4B84] hover:opacity-95 text-white shadow-sm flex items-center gap-1.5 transition">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+          <span>Download PDF</span>
+        </button>
+        <button onclick="downloadBothCards()" id="downloadBtn" class="px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 shadow-sm flex items-center gap-1.5 transition">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+          <span>PNGs</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Workspace -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6">
+
+    <!-- STUDIO VIEW -->
+    <div id="view-studio" class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+
+      <!-- Left Column: Controls & Customization -->
+      <div class="no-print lg:col-span-5 bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-6">
+        
+        <!-- 1. Select Design Template -->
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-wider text-[#0B4B84] mb-2.5">
+            1. Choose New Design Layout
+          </label>
+          <div class="grid grid-cols-2 gap-2.5">
+            <button onclick="setDesign(1)" id="designBtn-1" class="design-btn text-left p-3 rounded-xl border-2 border-[#58B947] bg-[#E2F4DF]/40 transition">
+              <div class="flex items-center justify-between mb-1">
+                <span class="font-heading font-bold text-xs text-[#0B4B84]">01. Cyber Ribbon</span>
+                <span class="flex gap-1"><span class="w-2 h-2 rounded-full bg-[#58B947]"></span><span class="w-2 h-2 rounded-full bg-[#2997D6]"></span></span>
+              </div>
+              <p class="text-[11px] text-slate-500 leading-tight">Green & Navy angled ribbons with Cyan accents</p>
+            </button>
+
+            <button onclick="setDesign(2)" id="designBtn-2" class="design-btn text-left p-3 rounded-xl border-2 border-slate-200 hover:border-slate-300 transition">
+              <div class="flex items-center justify-between mb-1">
+                <span class="font-heading font-bold text-xs text-slate-800">02. Dynamic Wave</span>
+                <span class="flex gap-1"><span class="w-2 h-2 rounded-full bg-[#58B947]"></span><span class="w-2 h-2 rounded-full bg-[#0B4B84]"></span></span>
+              </div>
+              <p class="text-[11px] text-slate-500 leading-tight">Dual Green & Blue waves with Mint/Ice rings</p>
+            </button>
+
+            <button onclick="setDesign(3)" id="designBtn-3" class="design-btn text-left p-3 rounded-xl border-2 border-slate-200 hover:border-slate-300 transition">
+              <div class="flex items-center justify-between mb-1">
+                <span class="font-heading font-bold text-xs text-slate-800">03. Circuit Crest</span>
+                <span class="flex gap-1"><span class="w-2 h-2 rounded-full bg-[#58B947]"></span><span class="w-2 h-2 rounded-full bg-[#E5A93C]"></span></span>
+              </div>
+              <p class="text-[11px] text-slate-500 leading-tight">Green-to-Navy tech crest & binary watermark</p>
+            </button>
+
+            <button onclick="setDesign(4)" id="designBtn-4" class="design-btn text-left p-3 rounded-xl border-2 border-slate-200 hover:border-slate-300 transition">
+              <div class="flex items-center justify-between mb-1">
+                <span class="font-heading font-bold text-xs text-slate-800">04. Neo Sidebar</span>
+                <span class="flex gap-1"><span class="w-2 h-2 rounded-full bg-[#58B947]"></span><span class="w-2 h-2 rounded-full bg-[#2997D6]"></span></span>
+              </div>
+              <p class="text-[11px] text-slate-500 leading-tight">Split Green & Navy vertical spine layout</p>
+            </button>
+          </div>
+        </div>
+
+        <hr class="border-slate-100" />
+
+        <!-- 2. Member Information -->
+        <div class="space-y-3.5">
+          <label class="block text-xs font-bold uppercase tracking-wider text-[#1E6B32]">
+            2. Member & Committee Details
+          </label>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="text-xs font-medium text-slate-600 block mb-1">Full Name</label>
+              <input type="text" id="inp-name" value="Name" oninput="syncData()" class="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 focus:outline-none focus:border-[#58B947]" />
+            </div>
+            <div>
+              <label class="text-xs font-medium text-slate-600 block mb-1">Designation / Role</label>
+              <input type="text" id="inp-role" value="Position" oninput="syncData()" class="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 focus:outline-none focus:border-[#58B947]" />
+            </div>
+          </div>
+
+          <div>
+            <label class="text-xs font-medium text-slate-600 block mb-1">Committee Session</label>
+            <input type="text" id="inp-session" value="EXECUTIVE COMMITTEE 2026-27" oninput="syncData()" class="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 focus:outline-none focus:border-[#58B947]" />
+          </div>
+
+          <!-- Uploads: Member Photo & Custom Club Logo -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+            <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-200">
+              <label class="text-xs font-semibold text-slate-700 block mb-1">Member Photo</label>
+              <input type="file" id="inp-photo" accept="image/*" onchange="handleImageUpload(event, 'member')" class="text-xs text-slate-500 file:mr-2 file:py-1 file:px-2.5 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-[#1E6B32] file:text-white hover:file:bg-[#58B947] cursor-pointer w-full" />
+            </div>
+            <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-200">
+              <label class="text-xs font-semibold text-slate-700 block mb-1">Club Logo (Optional)</label>
+              <input type="file" id="inp-logo" accept="image/*" onchange="handleImageUpload(event, 'logo')" class="text-xs text-slate-500 file:mr-2 file:py-1 file:px-2.5 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-[#58B947] file:text-white hover:file:bg-[#1E6B32] cursor-pointer w-full" />
+            </div>
+          </div>
+        </div>
+
+        <hr class="border-slate-100" />
+
+        <!-- 3. Back Side Contact Info -->
+        <div class="space-y-3">
+          <label class="block text-xs font-bold uppercase tracking-wider text-[#1E6B32]">
+            3. Back Side & QR Code Details
+          </label>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="text-xs font-medium text-slate-600 block mb-1">Website (QR Link)</label>
+              <input type="text" id="inp-web" value="pciucomputerclub.com" oninput="syncData(); updateQR();" class="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-200 focus:outline-none focus:border-[#58B947]" />
+            </div>
+            <div>
+              <label class="text-xs font-medium text-slate-600 block mb-1">E-mail</label>
+              <input type="text" id="inp-email" value="pciucomputerclub@gmail.com" oninput="syncData()" class="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-200 focus:outline-none focus:border-[#58B947]" />
+            </div>
+          </div>
+          <div>
+            <label class="text-xs font-medium text-slate-600 block mb-1">Department / Return Address</label>
+            <input type="text" id="inp-dept" value="Department of CSE, Port City International University" oninput="syncData()" class="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-200 focus:outline-none focus:border-[#58B947]" />
+          </div>
+        </div>
+
+        <!-- Palette Swatch Bar -->
+        <div class="pt-1">
+          <div class="flex items-center justify-between text-xs text-slate-500 mb-1.5">
+            <span class="font-semibold text-slate-700">Seamless Green → Teal → Blue Blend</span>
+            <span>Click any swatch to copy Hex</span>
+          </div>
+          <div class="grid grid-cols-6 gap-1.5">
+            <button onclick="copyHex('#58B947')" class="group relative h-8 rounded-lg bg-[#58B947] shadow-inner flex items-center justify-center text-[10px] font-mono text-white" title="Club Tech Green #58B947">#58B947</button>
+            <button onclick="copyHex('#25A162')" class="group relative h-8 rounded-lg bg-[#25A162] shadow-inner flex items-center justify-center text-[10px] font-mono text-white" title="Emerald Bridge #25A162">#25A162</button>
+            <button onclick="copyHex('#1D9A8C')" class="group relative h-8 rounded-lg bg-[#1D9A8C] shadow-inner flex items-center justify-center text-[10px] font-mono text-white" title="Aqua Teal Blend #1D9A8C">#1D9A8C</button>
+            <button onclick="copyHex('#2997D6')" class="group relative h-8 rounded-lg bg-[#2997D6] shadow-inner flex items-center justify-center text-[10px] font-mono text-white" title="Club Cyan Blue #2997D6">#2997D6</button>
+            <button onclick="copyHex('#0B4B84')" class="group relative h-8 rounded-lg bg-[#0B4B84] shadow-inner flex items-center justify-center text-[10px] font-mono text-white" title="Deep Club Navy #0B4B84">#0B4B84</button>
+            <button onclick="copyHex('#E6F6EC')" class="group relative h-8 rounded-lg bg-[#E6F6EC] shadow-inner flex items-center justify-center text-[10px] font-mono text-[#1E6B32] font-bold" title="Soft Mint Glow #E6F6EC">#E6F6EC</button>
+          </div>
+          <p id="copyToast" class="text-[11px] text-[#25A162] font-semibold mt-1 h-4 opacity-0 transition"></p>
+        </div>
+
+      </div>
+
+      <!-- Right Column: Live Front & Back ID Card Preview -->
+      <div class="lg:col-span-7 flex flex-col items-center">
+        
+        <div class="no-print w-full flex items-center justify-between mb-4 px-2">
+          <div class="flex items-center gap-2">
+            <span class="inline-block w-2.5 h-2.5 rounded-full bg-[#58B947]"></span>
+            <span id="activeDesignTitle" class="text-sm font-heading font-bold text-slate-700">Design 01: Cyber Ribbon (Front & Back)</span>
+          </div>
+          <div class="flex items-center gap-2 text-xs text-slate-500">
+            <label class="flex items-center gap-1.5 cursor-pointer">
+              <input type="checkbox" id="toggleSlot" checked onchange="toggleLanyardSlot()" class="rounded text-[#0B4B84]" />
+              <span>Show Punch Slot</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Cards Container -->
+        <div class="print-area flex flex-col sm:flex-row items-center justify-center gap-7 w-full py-2">
+
+          <!-- ================= FRONT CARD ================= -->
+          <div class="flex flex-col items-center gap-2">
+            <span class="no-print text-[11px] font-bold uppercase tracking-widest text-slate-400">Front Side</span>
+            <div id="card-front" class="id-card-canvas">
+              <div class="lanyard-slot"></div>
+              <div id="front-template-content" class="w-full h-full relative"></div>
+            </div>
+          </div>
+
+          <!-- ================= BACK CARD ================= -->
+          <div class="flex flex-col items-center gap-2">
+            <span class="no-print text-[11px] font-bold uppercase tracking-widest text-slate-400">Back Side</span>
+            <div id="card-back" class="id-card-canvas">
+              <div class="lanyard-slot"></div>
+              <div id="back-template-content" class="w-full h-full relative"></div>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- CANVA BLUEPRINT & GUIDE VIEW -->
+    <div id="view-canva" class="hidden space-y-6">
+      <div class="bg-white rounded-2xl border border-slate-200 p-6 sm:p-8 shadow-sm">
+        <div class="max-w-3xl">
+          <span class="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-[#D6E8F5] text-[#0B4B84]">Canva Recreation Guide</span>
+          <h2 class="font-heading font-extrabold text-2xl text-slate-900 mt-3">How to Build This Exact ID Card in Canva</h2>
+          <p class="text-slate-600 text-sm mt-1">
+            You can either click <strong>"Export PNGs"</strong> above to use these cards immediately, or follow this blueprint to recreate and customize them inside Canva with 100% editable layers.
+          </p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
+          <!-- Step 1: Canvas Size & Palette -->
+          <div class="p-5 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
+            <div class="w-8 h-8 rounded-lg bg-[#0B4B84] text-white font-heading font-bold flex items-center justify-center text-sm">1</div>
+            <h3 class="font-heading font-bold text-slate-900 text-base">Canvas Setup & Brand Colors</h3>
+            <ul class="text-xs text-slate-600 space-y-2 leading-relaxed">
+              <li>• Click <strong>Create a Design → Custom Size</strong> and set to <strong>2.125 × 3.375 in</strong> (or <strong>638 × 1013 px</strong> for vertical ID card).</li>
+              <li>• Add these exact Hex codes into your Canva Brand Kit or color picker:</li>
+            </ul>
+            <div class="space-y-1.5 pt-1 text-xs font-mono">
+              <div class="flex items-center justify-between p-1.5 rounded bg-white border"><span class="flex items-center gap-2"><span class="w-3.5 h-3.5 rounded bg-[#58B947]"></span>Club Tech Green</span> <strong>#58B947</strong></div>
+              <div class="flex items-center justify-between p-1.5 rounded bg-white border"><span class="flex items-center gap-2"><span class="w-3.5 h-3.5 rounded bg-[#1E6B32]"></span>Deep Emerald</span> <strong>#1E6B32</strong></div>
+              <div class="flex items-center justify-between p-1.5 rounded bg-white border"><span class="flex items-center gap-2"><span class="w-3.5 h-3.5 rounded bg-[#E2F4DF]"></span>Soft Mint Tint</span> <strong>#E2F4DF</strong></div>
+              <div class="flex items-center justify-between p-1.5 rounded bg-white border"><span class="flex items-center gap-2"><span class="w-3.5 h-3.5 rounded bg-[#2997D6]"></span>Logo Cyan Accent</span> <strong>#2997D6</strong></div>
+              <div class="flex items-center justify-between p-1.5 rounded bg-white border"><span class="flex items-center gap-2"><span class="w-3.5 h-3.5 rounded bg-[#E5A93C]"></span>Node Gold</span> <strong>#E5A93C</strong></div>
+            </div>
+          </div>
+
+          <!-- Step 2: Canva Elements Keywords -->
+          <div class="p-5 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
+            <div class="w-8 h-8 rounded-lg bg-[#2997D6] text-white font-heading font-bold flex items-center justify-center text-sm">2</div>
+            <h3 class="font-heading font-bold text-slate-900 text-base">Canva Elements Search Terms</h3>
+            <p class="text-xs text-slate-600 leading-relaxed">Go to the <strong>Elements → Graphics / Shapes</strong> tab in Canva and search these exact keywords:</p>
+            <div class="space-y-2 text-xs">
+              <div class="p-2 rounded-lg bg-white border border-slate-200">
+                <span class="font-bold text-[#0B4B84] block">For Header & Bottom Shapes:</span>
+                <code class="text-[11px] text-slate-600">"angled geometric banner", "modern corporate wave", "abstract blue polygon"</code>
+              </div>
+              <div class="p-2 rounded-lg bg-white border border-slate-200">
+                <span class="font-bold text-[#0B4B84] block">For Tech Watermarks:</span>
+                <code class="text-[11px] text-slate-600">"circuit board lines minimal", "binary code pattern", "tech hexagon node"</code> (set Transparency to <strong>8%–12%</strong>)
+              </div>
+              <div class="p-2 rounded-lg bg-white border border-slate-200">
+                <span class="font-bold text-[#0B4B84] block">For Member Photo Frame:</span>
+                <code class="text-[11px] text-slate-600">"circle frame with border"</code> or <code class="text-[11px] text-slate-600">"rounded square frame"</code> + add a subtle drop shadow.
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 3: Font Pairing -->
+          <div class="p-5 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
+            <div class="w-8 h-8 rounded-lg bg-[#58B947] text-white font-heading font-bold flex items-center justify-center text-sm">3</div>
+            <h3 class="font-heading font-bold text-slate-900 text-base">Canva Typography & QR Setup</h3>
+            <div class="space-y-2.5 text-xs text-slate-600">
+              <div class="p-2.5 rounded-lg bg-white border border-slate-200">
+                <span class="text-[10px] uppercase font-bold text-slate-400 block">Club Title & Member Name</span>
+                <span class="font-heading font-extrabold text-sm text-[#0B4B84]">Montserrat ExtraBold / Bold</span>
+                <p class="text-[11px] text-slate-500 mt-0.5">Letter spacing: +40 for "EXECUTIVE COMMITTEE"</p>
+              </div>
+              <div class="p-2.5 rounded-lg bg-white border border-slate-200">
+                <span class="text-[10px] uppercase font-bold text-slate-400 block">Role & Contact Details</span>
+                <span class="font-semibold text-sm text-slate-800">Plus Jakarta Sans / Poppins</span>
+                <p class="text-[11px] text-slate-500 mt-0.5">Clean & highly legible at small print sizes</p>
+              </div>
+              <div class="p-2.5 rounded-lg bg-white border border-slate-200">
+                <span class="text-[10px] uppercase font-bold text-slate-400 block">Canva Native QR Code</span>
+                <p class="text-[11px] text-slate-600 mt-0.5">In Canva, open <strong>Apps → QR Code</strong>, enter <code class="font-mono text-[#0B4B84]">https://pciucomputerclub.com</code>, and set Foreground color to <strong>#0B4B84</strong>.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Hidden QR generator staging container -->
+  <div id="qr-staging" class="hidden"></div>
+
+  <!-- Transfer to Canva Modal -->
+  <div id="canvaModal" class="fixed inset-0 z-50 hidden bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 space-y-5">
+      <div class="flex items-start justify-between gap-4">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-[#7D2AE8] text-white flex items-center justify-center font-heading font-black text-lg shadow-sm">
+            C
+          </div>
+          <div>
+            <h3 class="font-heading font-extrabold text-lg text-slate-900">Transfer Design to Canva</h3>
+            <p class="text-xs text-slate-500">Edit text, swap photos, and adjust shapes directly inside Canva</p>
+          </div>
+        </div>
+        <button onclick="closeCanvaModal()" class="text-slate-400 hover:text-slate-600 p-1">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <!-- Option 1: Canva Editable Layered PDF -->
+      <div class="p-4 rounded-xl bg-purple-50/70 border-2 border-[#7D2AE8]/30 space-y-3">
+        <div class="flex items-center justify-between">
+          <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-[#7D2AE8] text-white">Best Method • Editable Text & Photos</span>
+          <span class="text-xs font-semibold text-slate-500">2 Pages (Front & Back)</span>
+        </div>
+        <h4 class="font-heading font-bold text-sm text-slate-900">1. Download Canva-Editable Layered PDF</h4>
+        <p class="text-xs text-slate-600 leading-relaxed">
+          Generates a multi-layer PDF where the <strong>background graphics</strong>, <strong>member photo</strong>, <strong>club logo</strong>, <strong>QR code</strong>, and <strong>every text line</strong> are separate layers.
+        </p>
+        <ol class="text-xs text-slate-700 space-y-1 bg-white p-3 rounded-lg border border-purple-200/80">
+          <li><strong>Step 1:</strong> Click the purple button below to download the layered PDF.</li>
+          <li><strong>Step 2:</strong> Open <strong>Canva.com</strong> → click <strong>Create a design</strong> → <strong>Import file</strong> (or drag & drop the PDF onto Canva).</li>
+          <li><strong>Step 3:</strong> Open the imported design in Canva — click any text box, photo, or logo to edit it!</li>
+        </ol>
+        <button onclick="downloadCanvaEditablePDF()" id="canvaPdfBtn" class="w-full py-2.5 px-4 rounded-xl bg-[#7D2AE8] hover:bg-[#681EC6] text-white font-heading font-bold text-xs uppercase tracking-wider shadow-sm transition flex items-center justify-center gap-2">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+          <span>Download Canva-Editable PDF</span>
+        </button>
+      </div>
+
+      <!-- Option 2: Editable Vector SVGs -->
+      <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2.5">
+        <h4 class="font-heading font-bold text-sm text-slate-900">2. Download Pure Vector SVGs (Front & Back)</h4>
+        <p class="text-xs text-slate-600 leading-relaxed">
+          Want to recolor individual ribbons or waves inside Canva, Illustrator, or Figma? Upload these <code class="font-mono text-[#0B4B84]">.svg</code> files into <strong>Canva → Uploads</strong>.
+        </p>
+        <button onclick="downloadCanvaSVGs()" class="w-full py-2 px-4 rounded-xl bg-white border border-slate-300 hover:bg-slate-100 text-slate-800 font-heading font-bold text-xs uppercase tracking-wider transition flex items-center justify-center gap-2">
+          <span>Download Front & Back .SVG Files</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // State holding all live-editable values
+    const state = {
+      design: 1,
+      name: 'Name',
+      role: 'Position',
+      session: 'EXECUTIVE COMMITTEE 2026-27',
+      web: 'pciucomputerclub.com',
+      email: 'pciucomputerclub@gmail.com',
+      dept: 'Department of CSE, Port City International University',
+      memberPhoto: null,
+      memberPhotoCircle: null,
+      clubLogo: null,
+      clubLogoCircle: null,
+      qrDataUrl: ''
+    };
+
+    function openCanvaModal() {
+      document.getElementById('canvaModal').classList.remove('hidden');
+    }
+
+    function closeCanvaModal() {
+      document.getElementById('canvaModal').classList.add('hidden');
+    }
+
+    // Helper: Center-crop any uploaded image into a crisp square and circular PNG so it never stretches in PDF/Canva
+    function processUploadedImage(dataUrl, callback) {
+      const img = new Image();
+      img.onload = () => {
+        const size = 600;
+        const sqCanvas = document.createElement('canvas');
+        sqCanvas.width = size;
+        sqCanvas.height = size;
+        const sqCtx = sqCanvas.getContext('2d');
+
+        // Calculate center crop (object-fit: cover)
+        const scale = Math.max(size / img.width, size / img.height);
+        const w = img.width * scale;
+        const h = img.height * scale;
+        const x = (size - w) / 2;
+        const y = (size - h) / 2;
+
+        sqCtx.fillStyle = '#ffffff';
+        sqCtx.fillRect(0, 0, size, size);
+        sqCtx.drawImage(img, x, y, w, h);
+        const squareUrl = sqCanvas.toDataURL('image/png');
+
+        // Also create a circular clipped version for Canva Layered PDF
+        const cirCanvas = document.createElement('canvas');
+        cirCanvas.width = size;
+        cirCanvas.height = size;
+        const cirCtx = cirCanvas.getContext('2d');
+        cirCtx.beginPath();
+        cirCtx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
+        cirCtx.closePath();
+        cirCtx.clip();
+        cirCtx.drawImage(sqCanvas, 0, 0);
+        const circleUrl = cirCanvas.toDataURL('image/png');
+
+        callback(squareUrl, circleUrl);
+      };
+      img.src = dataUrl;
+    }
+
+    // Default crisp SVG Club Logo (Balanced Green & Blue PCIU Computer Club emblem)
+    function getClubLogoHTML(sizeClass = "w-14 h-14") {
+      if (state.clubLogo) {
+        return `<img src="${state.clubLogo}" alt="Club Logo" class="${sizeClass} rounded-full object-cover bg-white p-0.5 shadow-sm" />`;
+      }
+      return `
+        <svg viewBox="0 0 120 120" class="${sizeClass} rounded-full bg-white shadow-sm p-0.5 flex-shrink-0">
+          <circle cx="60" cy="60" r="56" fill="#ffffff" stroke="#0B4B84" stroke-width="3"/>
+          <circle cx="60" cy="60" r="44" fill="none" stroke="#58B947" stroke-width="2" stroke-dasharray="5 2"/>
+          <!-- Laptop base & screen -->
+          <path d="M36 76 L84 76 L90 83 L30 83 Z" fill="#0B4B84"/>
+          <rect x="40" y="46" width="40" height="28" rx="3" fill="#ffffff" stroke="#2997D6" stroke-width="3"/>
+          <!-- Graduation / Tech motif in green & cyan -->
+          <polygon points="46,37 68,27 58,48" fill="#58B947"/>
+          <path d="M44 42 L58 50 L72 42" fill="none" stroke="#58B947" stroke-width="3" stroke-linecap="round"/>
+          <!-- Binary text inside laptop -->
+          <text x="59" y="59" text-anchor="middle" fill="#0B4B84" font-family="monospace" font-weight="bold" font-size="8">010110</text>
+          <text x="59" y="68" text-anchor="middle" fill="#58B947" font-family="monospace" font-weight="bold" font-size="8">010110</text>
+          <!-- Accent three dots -->
+          <circle cx="17" cy="60" r="3.5" fill="#58B947"/>
+          <circle cx="103" cy="60" r="3.5" fill="#2997D6"/>
+          <circle cx="84" cy="72" r="4" fill="#E5A93C"/>
+        </svg>
+      `;
+    }
+
+    // Default Member Portrait Avatar (Balanced Green + Blue Tech Backdrop)
+    function getMemberPhotoHTML(frameClasses = "w-28 h-28 rounded-full") {
+      if (state.memberPhoto) {
+        return `<img src="${state.memberPhoto}" alt="Member Photo" class="${frameClasses} object-cover" />`;
+      }
+      return `
+        <div class="${frameClasses} bg-gradient-to-br from-[#E6F6EC] via-[#DCF2F0] to-[#D6E8F5] flex flex-col items-center justify-end overflow-hidden relative">
+          <div class="absolute top-2 right-3 text-[8px] font-mono-tech text-[#1D9A8C]/45 leading-none">010110<br/>101001</div>
+          <svg viewBox="0 0 100 100" class="w-4/5 h-4/5 text-[#0B4B84]/85 translate-y-2">
+            <circle cx="50" cy="36" r="18" fill="currentColor"/>
+            <path d="M18 92 C18 68 82 68 82 92 Z" fill="currentColor"/>
+          </svg>
+        </div>
+      `;
+    }
+
+    // Three-dot signature motif from the original logo
+    function getThreeDotsHTML() {
+      return `
+        <div class="inline-flex items-center gap-1">
+          <span class="w-2.5 h-2.5 rounded-full bg-[#58B947]"></span>
+          <span class="w-2.5 h-2.5 rounded-full bg-[#2997D6]"></span>
+          <span class="w-2 h-2 rounded-full bg-[#E5A93C]"></span>
+        </div>
+      `;
+    }
+
+    // Generate QR Code DataURL in Deep Club Navy Blue to balance the Green frame
+    function updateQR() {
+      const staging = document.getElementById('qr-staging');
+      staging.innerHTML = '';
+      const qrUrl = state.web.startsWith('http') ? state.web : `https://${state.web}`;
+      new QRCode(staging, {
+        text: qrUrl,
+        width: 140,
+        height: 140,
+        colorDark: "#0B4B84",
+        colorLight: "#ffffff",
+        correctLevel: QRCode.CorrectLevel.M
+      });
+      setTimeout(() => {
+        const canvas = staging.querySelector('canvas');
+        if (canvas) {
+          state.qrDataUrl = canvas.toDataURL('image/png');
+          renderCards();
+        }
+      }, 60);
+    }
+
+    // Sync inputs to state
+    function syncData() {
+      state.name = document.getElementById('inp-name').value || 'Name';
+      state.role = document.getElementById('inp-role').value || 'Position';
+      state.session = document.getElementById('inp-session').value || 'EXECUTIVE COMMITTEE 2026-27';
+      state.web = document.getElementById('inp-web').value;
+      state.email = document.getElementById('inp-email').value;
+      state.dept = document.getElementById('inp-dept').value;
+      renderCards();
+    }
+
+    function handleImageUpload(event, target) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        processUploadedImage(e.target.result, (squareUrl, circleUrl) => {
+          if (target === 'member') {
+            state.memberPhoto = squareUrl;
+            state.memberPhotoCircle = circleUrl;
+          }
+          if (target === 'logo') {
+            state.clubLogo = squareUrl;
+            state.clubLogoCircle = circleUrl;
+          }
+          renderCards();
+        });
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function setDesign(num) {
+      state.design = num;
+      const titles = {
+        1: 'Design 01: Cyber Ribbon (Front & Back)',
+        2: 'Design 02: Dynamic Wave (Front & Back)',
+        3: 'Design 03: Circuit Crest (Front & Back)',
+        4: 'Design 04: Neo Sidebar (Front & Back)'
+      };
+      document.getElementById('activeDesignTitle').textContent = titles[num];
+
+      for (let i = 1; i <= 4; i++) {
+        const btn = document.getElementById(`designBtn-${i}`);
+        if (i === num) {
+          btn.className = "design-btn text-left p-3 rounded-xl border-2 border-[#58B947] bg-[#E2F4DF]/50 transition";
+        } else {
+          btn.className = "design-btn text-left p-3 rounded-xl border-2 border-slate-200 hover:border-slate-300 transition";
+        }
+      }
+      renderCards();
+    }
+
+    function toggleLanyardSlot() {
+      const show = document.getElementById('toggleSlot').checked;
+      document.querySelectorAll('.lanyard-slot').forEach(el => {
+        el.style.display = show ? 'block' : 'none';
+      });
+    }
+
+    function switchTab(tab) {
+      const studio = document.getElementById('view-studio');
+      const canva = document.getElementById('view-canva');
+      const btnStudio = document.getElementById('tabBtn-studio');
+      const btnCanva = document.getElementById('tabBtn-canva');
+
+      if (tab === 'studio') {
+        studio.classList.remove('hidden');
+        canva.classList.add('hidden');
+        btnStudio.className = "px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold bg-[#1E6B32] text-white transition";
+        btnCanva.className = "px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200 transition";
+      } else {
+        studio.classList.add('hidden');
+        canva.classList.remove('hidden');
+        btnCanva.className = "px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold bg-[#1E6B32] text-white transition";
+        btnStudio.className = "px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200 transition";
+      }
+    }
+
+    function copyHex(hex) {
+      try {
+        const tempInput = document.createElement('textarea');
+        tempInput.value = hex;
+        tempInput.setAttribute('readonly', '');
+        tempInput.style.position = 'fixed';
+        tempInput.style.left = '-9999px';
+        tempInput.style.top = '0';
+        document.body.appendChild(tempInput);
+        tempInput.focus();
+        tempInput.select();
+        document.execCommand('copy');
+        document.body.removeChild(tempInput);
+      } catch (err) {
+        console.warn('Fallback clipboard copy failed:', err);
+      }
+      const toast = document.getElementById('copyToast');
+      if (toast) {
+        toast.textContent = `Copied ${hex} to clipboard! Ready to paste in Canva.`;
+        toast.classList.remove('opacity-0');
+        setTimeout(() => toast.classList.add('opacity-0'), 2200);
+      }
+    }
+
+    // ================= RENDER TEMPLATES =================
+    function renderCards() {
+      const frontEl = document.getElementById('front-template-content');
+      const backEl = document.getElementById('back-template-content');
+
+      if (state.design === 1) {
+        // DESIGN 1: CYBER RIBBON (Silky Green -> Emerald-Teal -> Cyan -> Navy Blend)
+        frontEl.innerHTML = `
+          <div class="w-full h-full flex flex-col justify-between relative bg-white">
+            <!-- Smooth ambient radial glow (no blur filter bug) -->
+            <div class="w-64 h-64 rounded-full absolute top-40 left-1/2 -translate-x-1/2 pointer-events-none" style="background: radial-gradient(circle, rgba(88,185,71,0.10) 0%, rgba(29,154,140,0.06) 45%, rgba(41,151,214,0) 70%);"></div>
+            <div class="circuit-pattern absolute inset-0 pointer-events-none"></div>
+
+            <!-- Angled Top Header SVG with Multi-Stop Smooth Color Bridge -->
+            <div class="relative z-10">
+              <svg viewBox="0 0 340 205" class="w-full h-auto block">
+                <defs>
+                  <linearGradient id="d1SmoothHeader" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#58B947" />
+                    <stop offset="38%" stop-color="#25A162" />
+                    <stop offset="72%" stop-color="#1D9A8C" />
+                    <stop offset="100%" stop-color="#0B4B84" />
+                  </linearGradient>
+                  <linearGradient id="d1SubtleUnder" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stop-color="#E6F6EC" />
+                    <stop offset="50%" stop-color="#DCF2F0" />
+                    <stop offset="100%" stop-color="#D6E8F5" />
+                  </linearGradient>
+                  <linearGradient id="d1RibbonAccent" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stop-color="#58B947" />
+                    <stop offset="55%" stop-color="#1D9A8C" />
+                    <stop offset="100%" stop-color="#2997D6" />
+                  </linearGradient>
+                </defs>
+                <!-- Soft Mint-to-Ice Blue ambient under-layer -->
+                <polygon points="0,0 340,0 340,146 0,196" fill="url(#d1SubtleUnder)"/>
+                <!-- Translucent Aqua-Blue mid-wedge -->
+                <polygon points="95,122 340,76 340,136 95,182" fill="#2997D6" opacity="0.28"/>
+                <!-- Main Silky Green-to-Teal-to-Navy Polygon -->
+                <polygon points="0,0 340,0 340,112 0,174" fill="url(#d1SmoothHeader)"/>
+                <!-- Continuous Blended Ribbon Accent Strip -->
+                <polygon points="0,167 340,105 340,114 0,176" fill="url(#d1RibbonAccent)"/>
+                <!-- Subtle Gold Spark Accent on Right Edge -->
+                <polygon points="275,117 340,105 340,110 275,122" fill="#E5A93C"/>
+              </svg>
+
+              <!-- Club Header Content -->
+              <div class="absolute top-8 inset-x-5 flex items-center gap-3 text-white">
+                ${getClubLogoHTML("w-12 h-12")}
+                <div>
+                  <p class="text-[9px] font-mono-tech uppercase tracking-widest text-[#E6F6EC] font-semibold">Port City International University</p>
+                  <h2 class="font-heading font-black text-base tracking-tight leading-tight drop-shadow-sm">PCIU COMPUTER CLUB</h2>
+                  <div class="inline-flex items-center justify-center mt-1 px-2.5 h-5 rounded-full bg-white/15 border border-white/30 text-[9px] font-heading font-bold tracking-wider uppercase text-white leading-none">
+                    <span>${state.session}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Center Member Avatar with Seamless Green -> Teal -> Cyan Ring -->
+            <div class="relative z-20 -mt-12 flex flex-col items-center px-6">
+              <div class="relative p-1.5 rounded-full bg-white shadow-lg">
+                <div class="p-1 rounded-full bg-gradient-to-tr from-[#58B947] via-[#1D9A8C] to-[#2997D6]">
+                  ${getMemberPhotoHTML("w-32 h-32 rounded-full border-2 border-white")}
+                </div>
+                <span class="absolute bottom-2 right-2 w-4 h-4 rounded-full bg-gradient-to-br from-[#58B947] to-[#2997D6] border-2 border-white shadow-sm"></span>
+              </div>
+
+              <!-- Name & Role -->
+              <h3 class="font-heading font-extrabold text-xl text-[#0B4B84] mt-4 text-center leading-snug">${state.name}</h3>
+              <div class="mt-2 inline-flex items-center justify-center gap-2 px-5 h-7 rounded-full bg-gradient-to-r from-[#58B947] via-[#25A162] to-[#1D9A8C] text-white font-heading font-bold text-xs tracking-wider uppercase shadow-sm leading-none">
+                <span class="w-2 h-2 rounded-full bg-[#E6F6EC] flex-shrink-0"></span>
+                <span>${state.role}</span>
+              </div>
+            </div>
+
+            <!-- Bottom Geometric Footer with Smooth Gradient Transition -->
+            <div class="relative z-10 mt-auto">
+              <div class="px-6 flex items-center justify-between text-[10px] text-slate-400 mb-1.5">
+                <span class="font-mono-tech text-[#25A162] font-bold">010110 <span class="text-[#1D9A8C]">010110</span></span>
+                ${getThreeDotsHTML()}
+              </div>
+              <svg viewBox="0 0 340 55" class="w-full h-auto block">
+                <defs>
+                  <linearGradient id="d1FooterBlend" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stop-color="#58B947" />
+                    <stop offset="42%" stop-color="#25A162" />
+                    <stop offset="75%" stop-color="#1D9A8C" />
+                    <stop offset="100%" stop-color="#0B4B84" />
+                  </linearGradient>
+                </defs>
+                <polygon points="0,30 340,8 340,55 0,55" fill="url(#d1SubtleUnder)"/>
+                <polygon points="0,38 340,14 340,55 0,55" fill="url(#d1FooterBlend)"/>
+                <polygon points="0,34 340,10 340,15 0,39" fill="url(#d1RibbonAccent)"/>
+              </svg>
+            </div>
+          </div>
+        `;
+
+        backEl.innerHTML = `
+          <div class="w-full h-full flex flex-col justify-between relative bg-white">
+            <div class="circuit-pattern absolute inset-0 pointer-events-none"></div>
+
+            <!-- Top Angled Bar with Smooth Multi-Stop Blend -->
+            <svg viewBox="0 0 340 90" class="w-full h-auto block">
+              <defs>
+                <linearGradient id="d1BackTop" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#58B947" />
+                  <stop offset="40%" stop-color="#25A162" />
+                  <stop offset="75%" stop-color="#1D9A8C" />
+                  <stop offset="100%" stop-color="#0B4B84" />
+                </linearGradient>
+                <linearGradient id="d1BackLine" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stop-color="#58B947" />
+                  <stop offset="50%" stop-color="#1D9A8C" />
+                  <stop offset="100%" stop-color="#2997D6" />
+                </linearGradient>
+              </defs>
+              <polygon points="0,0 340,0 340,58 0,86" fill="#E6F6EC"/>
+              <polygon points="0,0 340,0 340,50 0,80" fill="url(#d1BackTop)"/>
+              <polygon points="0,76 340,46 340,52 0,82" fill="url(#d1BackLine)"/>
+            </svg>
+
+            <div class="px-6 -mt-3 relative z-10 flex-1 flex flex-col justify-between py-3">
+              <!-- Return Notice Card -->
+              <div class="p-4 rounded-2xl bg-gradient-to-br from-[#E6F6EC]/85 via-[#DCF2F0]/75 to-[#D6E8F5]/85 border border-[#1D9A8C]/25 text-center shadow-sm">
+                <p class="text-[11px] text-slate-700 leading-relaxed">
+                  This card is the property of <strong class="text-[#25A162]">PCIU Computer Club</strong>. If found, please return to:
+                </p>
+                <p class="text-xs font-heading font-bold text-[#0B4B84] mt-1.5">${state.dept}</p>
+              </div>
+
+              <!-- Contact Info List (Website & Email Only) -->
+              <div class="space-y-2.5 my-2 text-xs">
+                <div class="flex items-center gap-3 p-2.5 rounded-xl bg-gradient-to-r from-[#E6F6EC]/50 to-transparent border border-[#58B947]/25">
+                  <span class="w-7 h-7 rounded-lg bg-gradient-to-br from-[#58B947] to-[#1D9A8C] text-white flex items-center justify-center text-xs font-bold shadow-sm">🌐</span>
+                  <div>
+                    <span class="text-[9px] uppercase tracking-wider text-[#25A162] font-bold block leading-none">Official Website</span>
+                    <span class="font-semibold text-[#0B4B84] text-xs mt-0.5 block">${state.web}</span>
+                  </div>
+                </div>
+                <div class="flex items-center gap-3 p-2.5 rounded-xl bg-gradient-to-r from-[#D6E8F5]/50 to-transparent border border-[#2997D6]/25">
+                  <span class="w-7 h-7 rounded-lg bg-gradient-to-br from-[#1D9A8C] to-[#0B4B84] text-white flex items-center justify-center text-xs font-bold shadow-sm">✉</span>
+                  <div>
+                    <span class="text-[9px] uppercase tracking-wider text-[#0B4B84] font-bold block leading-none">Official E-mail</span>
+                    <span class="font-semibold text-slate-700 text-[11px] mt-0.5 block">${state.email}</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- QR Code Section -->
+              <div class="flex items-center justify-between gap-3 p-3.5 rounded-2xl bg-gradient-to-r from-white via-[#F4FBF7] to-[#EFF7FC] border border-[#1D9A8C]/30 shadow-sm">
+                <div class="space-y-1">
+                  ${getThreeDotsHTML()}
+                  <p class="font-heading font-bold text-xs text-[#0B4B84] leading-snug">Scan QR Code</p>
+                  <p class="text-[10px] text-slate-500 leading-tight">Scan the QR code to contact with us</p>
+                </div>
+                <img src="${state.qrDataUrl}" alt="QR Code" class="w-20 h-20 rounded-xl bg-white border border-[#1D9A8C]/25 p-1 flex-shrink-0 shadow-sm" />
+              </div>
+            </div>
+
+            <!-- Bottom Blended Bar -->
+            <div class="h-4 bg-gradient-to-r from-[#58B947] via-[#1D9A8C] to-[#0B4B84] w-full"></div>
+          </div>
+        `;
+      }
+
+      else if (state.design === 2) {
+        // DESIGN 2: DYNAMIC WAVE (Silky Flowing Green -> Teal -> Cyan -> Navy Waves)
+        frontEl.innerHTML = `
+          <div class="w-full h-full flex flex-col justify-between relative bg-white overflow-hidden">
+            <!-- Soft Blended Ambient Orbs -->
+            <div class="w-44 h-44 rounded-full bg-gradient-to-br from-[#E6F6EC] to-[#DCF2F0] opacity-85 absolute -right-14 top-36 pointer-events-none"></div>
+            <div class="w-36 h-36 rounded-full bg-gradient-to-tr from-[#D6E8F5] to-[#E6F6EC] opacity-80 absolute -left-10 bottom-16 pointer-events-none"></div>
+
+            <!-- Curved Wave Top Header with Seamless Gradient -->
+            <div class="relative z-10">
+              <svg viewBox="0 0 340 198" class="w-full h-auto block">
+                <defs>
+                  <linearGradient id="d2WaveSmooth" x1="0%" y1="0%" x2="100%" y2="80%">
+                    <stop offset="0%" stop-color="#58B947" />
+                    <stop offset="36%" stop-color="#25A162" />
+                    <stop offset="70%" stop-color="#1D9A8C" />
+                    <stop offset="100%" stop-color="#0B4B84" />
+                  </linearGradient>
+                  <linearGradient id="d2SubWave" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stop-color="#58B947" stop-opacity="0.35" />
+                    <stop offset="50%" stop-color="#1D9A8C" stop-opacity="0.45" />
+                    <stop offset="100%" stop-color="#2997D6" stop-opacity="0.55" />
+                  </linearGradient>
+                </defs>
+                <!-- Soft Mint-Ice under wave -->
+                <path d="M0,0 L340,0 L340,142 C245,194 110,104 0,174 Z" fill="#E6F6EC"/>
+                <!-- Translucent Teal-Cyan ribbon wave -->
+                <path d="M0,144 C120,84 240,176 340,122 L340,140 C240,190 120,102 0,166 Z" fill="url(#d2SubWave)"/>
+                <!-- Main Green -> Emerald -> Teal -> Navy Header Wave -->
+                <path d="M0,0 L340,0 L340,120 C240,170 120,85 0,152 Z" fill="url(#d2WaveSmooth)"/>
+              </svg>
+
+              <div class="absolute top-8 inset-x-5 flex flex-col items-center text-center text-white">
+                <div class="flex items-center gap-2.5">
+                  ${getClubLogoHTML("w-11 h-11")}
+                  <div class="text-left">
+                    <h2 class="font-heading font-extrabold text-base tracking-wide text-white leading-none drop-shadow-sm">PCIU COMPUTER CLUB</h2>
+                    <p class="text-[10px] text-[#E6F6EC] font-medium mt-0.5">Port City International University</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Center Content (Soft Blended Squircle Frame Layers) -->
+            <div class="relative z-20 -mt-10 flex flex-col items-center px-6">
+              <div class="relative">
+                <div class="w-32 h-32 rounded-2xl rotate-6 bg-gradient-to-br from-[#58B947]/35 to-[#1D9A8C]/35 absolute inset-0"></div>
+                <div class="w-32 h-32 rounded-2xl -rotate-6 bg-gradient-to-tr from-[#1D9A8C]/30 to-[#2997D6]/35 absolute inset-0"></div>
+                <div class="relative p-1.5 bg-white rounded-2xl shadow-md border border-[#1D9A8C]/30">
+                  ${getMemberPhotoHTML("w-28 h-28 rounded-xl")}
+                </div>
+              </div>
+
+              <span class="mt-4 px-3.5 py-0.5 rounded-full bg-gradient-to-r from-[#E6F6EC] via-[#DCF2F0] to-[#D6E8F5] text-[#0B4B84] border border-[#1D9A8C]/20 font-heading font-bold text-[9px] tracking-widest uppercase">
+                ${state.session}
+              </span>
+
+              <h3 class="font-heading font-black text-xl text-[#0B4B84] mt-2.5 text-center">${state.name}</h3>
+              <span class="mt-1.5 px-5 py-1 rounded-full bg-gradient-to-r from-[#58B947] via-[#25A162] to-[#1D9A8C] text-white font-heading font-bold text-xs uppercase tracking-widest shadow-sm">
+                ${state.role}
+              </span>
+            </div>
+
+            <!-- Bottom Wave Footer (Seamless Green-Teal-Navy Flow) -->
+            <div class="relative z-10 mt-auto">
+              <div class="px-6 flex justify-between items-center mb-1">
+                ${getThreeDotsHTML()}
+                <span class="text-[9px] font-mono-tech text-[#1D9A8C] font-semibold">pciucomputerclub.com</span>
+              </div>
+              <svg viewBox="0 0 340 52" class="w-full h-auto block">
+                <defs>
+                  <linearGradient id="d2BottomWave" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stop-color="#58B947" />
+                    <stop offset="40%" stop-color="#25A162" />
+                    <stop offset="75%" stop-color="#1D9A8C" />
+                    <stop offset="100%" stop-color="#0B4B84" />
+                  </linearGradient>
+                </defs>
+                <path d="M0,22 C120,54 220,-6 340,22 L340,52 L0,52 Z" fill="url(#d2BottomWave)"/>
+                <path d="M0,18 C110,48 220,-2 340,18 L340,24 C220,4 110,52 0,24 Z" fill="#E6F6EC" opacity="0.6"/>
+              </svg>
+            </div>
+          </div>
+        `;
+
+        backEl.innerHTML = `
+          <div class="w-full h-full flex flex-col justify-between relative bg-white overflow-hidden">
+            <!-- Soft Blended Gradient Orbs -->
+            <div class="w-40 h-40 rounded-full bg-gradient-to-br from-[#E6F6EC] to-[#D6E8F5] opacity-80 absolute -left-12 top-10 pointer-events-none"></div>
+            <div class="w-36 h-36 rounded-full bg-gradient-to-tl from-[#DCF2F0] to-[#E6F6EC] opacity-85 absolute -right-10 bottom-14 pointer-events-none"></div>
+
+            <div class="pt-9 px-6 relative z-10 flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                ${getClubLogoHTML("w-10 h-10")}
+                <div>
+                  <h4 class="font-heading font-extrabold text-xs text-[#0B4B84]">PCIU COMPUTER CLUB</h4>
+                  <p class="text-[9px] text-[#25A162] font-semibold">Official Identity Card</p>
+                </div>
+              </div>
+              ${getThreeDotsHTML()}
+            </div>
+
+            <div class="px-6 relative z-10 space-y-3.5 my-auto">
+              <div class="p-3.5 rounded-2xl bg-white/90 backdrop-blur-sm border-l-4 border-[#25A162] border border-[#1D9A8C]/20 shadow-sm">
+                <p class="text-[11px] text-slate-600 leading-relaxed">
+                  This is a property of <strong class="text-[#25A162]">PCIU Computer Club</strong>. If it is found, please return to the following address:
+                </p>
+                <p class="text-xs font-heading font-bold text-[#0B4B84] mt-1.5">${state.dept}</p>
+              </div>
+
+              <!-- Smooth Multi-Stop Green -> Teal -> Navy Contact Card (No Mobile) -->
+              <div class="p-3.5 rounded-2xl bg-gradient-to-r from-[#58B947] via-[#1D9A8C] to-[#0B4B84] text-white space-y-2 text-xs shadow-sm">
+                <div class="flex items-center justify-between border-b border-white/15 pb-1.5">
+                  <span class="text-[#E6F6EC] text-[10px] uppercase tracking-wider font-semibold">Website</span>
+                  <span class="font-semibold">${state.web}</span>
+                </div>
+                <div class="flex items-center justify-between">
+                  <span class="text-[#E6F6EC] text-[10px] uppercase tracking-wider font-semibold">E-mail</span>
+                  <span class="font-semibold text-[10px]">${state.email}</span>
+                </div>
+              </div>
+
+              <div class="flex flex-col items-center pt-1">
+                <div class="p-2 bg-white rounded-2xl border-2 border-[#1D9A8C]/40 shadow-sm">
+                  <img src="${state.qrDataUrl}" alt="QR Code" class="w-20 h-20" />
+                </div>
+                <p class="text-[10px] font-heading font-bold text-[#0B4B84] mt-1.5">Scan the QR code to contact with us</p>
+              </div>
+            </div>
+
+            <svg viewBox="0 0 340 35" class="w-full h-auto block">
+              <path d="M0,15 C140,40 200,0 340,18 L340,35 L0,35 Z" fill="url(#d2BottomWave)"/>
+            </svg>
+          </div>
+        `;
+      }
+
+      else if (state.design === 3) {
+        // DESIGN 3: CIRCUIT CREST (Seamless Green -> Emerald -> Teal -> Navy Mesh Header)
+        frontEl.innerHTML = `
+          <div class="w-full h-full flex flex-col justify-between relative bg-gradient-to-b from-[#F4FBF7] via-white to-[#EFF7FC]">
+            <!-- Smooth Multi-Stop Header Block -->
+            <div class="h-52 bg-gradient-to-br from-[#58B947] via-[#1D9A8C] to-[#0B4B84] relative overflow-hidden rounded-b-[38px] shadow-md">
+              <!-- Soft radial glow inside header for depth -->
+              <div class="w-40 h-40 rounded-full bg-[#E6F6EC]/20 blur-xl absolute -top-10 -left-10 pointer-events-none"></div>
+              <div class="w-40 h-40 rounded-full bg-[#2997D6]/25 blur-xl absolute bottom-0 right-0 pointer-events-none"></div>
+              <div class="absolute inset-0 opacity-15 font-mono-tech text-[10px] text-white leading-tight p-4 select-none">
+                010110 010110 110010 010110<br/>101010 010110 001101 110101<br/>010110 111000 010110 010110
+              </div>
+              <div class="pt-8 px-5 flex flex-col items-center text-center relative z-10">
+                <span class="px-3 py-0.5 rounded-full bg-white/15 border border-white/30 text-white font-heading font-bold text-[9px] tracking-widest uppercase backdrop-blur-sm">
+                  ${state.session}
+                </span>
+                <h2 class="font-heading font-black text-lg text-white tracking-wide mt-2 drop-shadow-sm">PCIU COMPUTER CLUB</h2>
+                <p class="text-[10px] text-[#E6F6EC] font-medium">Port City International University</p>
+              </div>
+            </div>
+
+            <!-- Floating White Profile Card -->
+            <div class="mx-5 -mt-20 bg-white/95 backdrop-blur-md rounded-2xl shadow-lg border border-[#1D9A8C]/20 p-5 flex flex-col items-center relative z-20">
+              <div class="absolute -top-6 right-4">
+                ${getClubLogoHTML("w-11 h-11")}
+              </div>
+              <div class="p-1 rounded-full bg-gradient-to-tr from-[#58B947] via-[#1D9A8C] to-[#2997D6] shadow-md">
+                ${getMemberPhotoHTML("w-28 h-28 rounded-full border-4 border-white")}
+              </div>
+
+              <h3 class="font-heading font-extrabold text-xl text-[#0B4B84] mt-3.5 text-center">${state.name}</h3>
+              <span class="mt-1.5 px-4 py-1 rounded-full bg-gradient-to-r from-[#E6F6EC] via-[#DCF2F0] to-[#D6E8F5] text-[#1E6B32] border border-[#1D9A8C]/30 font-heading font-bold text-xs uppercase tracking-wider">
+                ${state.role}
+              </span>
+
+              <div class="w-full border-t border-slate-100 mt-5 pt-3 flex items-center justify-between text-[10px] text-slate-400">
+                ${getThreeDotsHTML()}
+                <span class="font-mono-tech text-[#1D9A8C] font-bold">CSE • <span class="text-[#0B4B84]">PCIU</span></span>
+              </div>
+            </div>
+
+            <!-- Bottom Accent Bar -->
+            <div class="px-6 pb-4 pt-2 flex items-center justify-between">
+              <span class="text-[10px] font-mono-tech text-[#25A162] font-bold">010110</span>
+              <div class="w-24 h-2 rounded-full bg-gradient-to-r from-[#58B947] via-[#1D9A8C] to-[#0B4B84]"></div>
+            </div>
+          </div>
+        `;
+
+        backEl.innerHTML = `
+          <div class="w-full h-full flex flex-col justify-between relative bg-gradient-to-b from-[#F4FBF7] via-white to-[#EFF7FC] p-6 pt-9">
+            <div class="bg-white rounded-2xl border border-[#1D9A8C]/25 p-5 shadow-sm flex-1 flex flex-col justify-between relative overflow-hidden">
+              <div class="absolute top-0 inset-x-0 h-2 bg-gradient-to-r from-[#58B947] via-[#1D9A8C] to-[#0B4B84]"></div>
+              <div class="flex items-center justify-between border-b border-slate-100 pb-3 pt-1">
+                <div class="flex items-center gap-2.5">
+                  ${getClubLogoHTML("w-10 h-10")}
+                  <div>
+                    <h4 class="font-heading font-black text-xs text-[#0B4B84]">PCIU COMPUTER CLUB</h4>
+                    <p class="text-[9px] text-[#25A162] font-semibold">Port City International University</p>
+                  </div>
+                </div>
+              </div>
+
+              <div class="text-xs text-slate-600 space-y-2 my-2">
+                <p class="text-[11px] leading-relaxed">
+                  This is a property of <strong class="text-[#25A162]">PCIU Computer Club</strong>. If found, please return to:
+                </p>
+                <div class="p-3 rounded-xl bg-gradient-to-r from-[#E6F6EC]/80 via-[#DCF2F0]/70 to-[#D6E8F5]/80 text-[#0B4B84] font-heading font-bold text-[11px] border-l-4 border-[#25A162]">
+                  ${state.dept}
+                </div>
+              </div>
+
+              <!-- Website & Email Only -->
+              <div class="space-y-2 text-[11px] text-slate-700 border-t border-b border-slate-100 py-3">
+                <div class="flex items-center justify-between">
+                  <strong class="text-[#25A162] uppercase text-[10px] tracking-wider">Website</strong>
+                  <span class="font-semibold text-[#0B4B84]">${state.web}</span>
+                </div>
+                <div class="flex items-center justify-between">
+                  <strong class="text-[#1D9A8C] uppercase text-[10px] tracking-wider">E-mail</strong>
+                  <span class="font-semibold text-slate-700 text-[10.5px]">${state.email}</span>
+                </div>
+              </div>
+
+              <div class="flex items-center justify-between pt-1">
+                <div>
+                  <span class="text-[10px] font-heading font-extrabold uppercase text-[#0B4B84] block">Connect With Us</span>
+                  <span class="text-[10px] text-[#25A162] font-semibold">Scan QR Code</span>
+                  <div class="mt-1">${getThreeDotsHTML()}</div>
+                </div>
+                <img src="${state.qrDataUrl}" alt="QR Code" class="w-20 h-20 rounded-xl border-2 border-[#1D9A8C]/40 p-1 shadow-sm" />
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      else if (state.design === 4) {
+        // DESIGN 4: NEO SIDEBAR (Silky Vertical Green -> Teal -> Cyan -> Navy Spine)
+        frontEl.innerHTML = `
+          <div class="w-full h-full flex relative bg-white overflow-hidden">
+            <!-- Left Vertical Accent Spine with Seamless 4-Stop Blend -->
+            <div class="w-12 h-full bg-gradient-to-b from-[#58B947] via-[#1D9A8C] to-[#0B4B84] flex flex-col items-center justify-between py-6 text-white relative">
+              <div class="w-2 h-12 bg-[#E6F6EC]/90 rounded-full"></div>
+              <div class="-rotate-90 whitespace-nowrap font-heading font-extrabold text-[11px] tracking-[0.25em] text-white uppercase drop-shadow-sm">
+                PCIU COMPUTER CLUB
+              </div>
+              <div class="font-mono-tech text-[9px] text-[#DCF2F0]">010<br/>110</div>
+            </div>
+
+            <!-- Soft Gradient Divider Strip -->
+            <div class="w-1.5 h-full bg-gradient-to-b from-[#E6F6EC] via-[#2997D6] to-[#58B947]"></div>
+
+            <!-- Main Right Content Area -->
+            <div class="flex-1 flex flex-col justify-between p-5 pt-8 relative">
+              <div class="w-36 h-36 rounded-full bg-gradient-to-bl from-[#E6F6EC] to-[#DCF2F0] opacity-75 absolute -right-12 -top-6 pointer-events-none"></div>
+              <div class="w-28 h-28 rounded-full bg-gradient-to-tl from-[#D6E8F5] to-[#DCF2F0] opacity-70 absolute -right-10 bottom-12 pointer-events-none"></div>
+
+              <!-- Header -->
+              <div class="flex items-center gap-2.5 relative z-10">
+                ${getClubLogoHTML("w-12 h-12")}
+                <div>
+                  <span class="text-[9px] font-heading font-bold uppercase tracking-wider text-[#25A162] block">
+                    ${state.session}
+                  </span>
+                  <h2 class="font-heading font-black text-sm text-[#0B4B84] leading-tight">PCIU COMPUTER CLUB</h2>
+                  <p class="text-[9px] text-slate-500">Port City International University</p>
+                </div>
+              </div>
+
+              <!-- Photo & Name -->
+              <div class="my-auto flex flex-col items-start pl-1 relative z-10">
+                <div class="p-1 rounded-2xl bg-gradient-to-tr from-[#58B947] via-[#1D9A8C] to-[#2997D6] shadow-md">
+                  ${getMemberPhotoHTML("w-28 h-28 rounded-xl border-2 border-white")}
+                </div>
+
+                <div class="mt-4">
+                  ${getThreeDotsHTML()}
+                  <h3 class="font-heading font-black text-xl text-[#0B4B84] mt-1 leading-tight">${state.name}</h3>
+                  <div class="mt-2 inline-flex items-center gap-1.5 px-4 py-1 rounded-full bg-gradient-to-r from-[#58B947] via-[#25A162] to-[#1D9A8C] text-white font-heading font-bold text-xs uppercase tracking-wider shadow-sm">
+                    <span class="w-1.5 h-1.5 rounded-full bg-white"></span>
+                    <span>${state.role}</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Footer -->
+              <div class="border-t border-slate-100 pt-2.5 flex items-center justify-between text-[10px] text-slate-400 relative z-10">
+                <span class="text-[#25A162] font-semibold">Dept. of CSE</span>
+                <span class="font-mono-tech text-[#1D9A8C] font-semibold">SESSION 2025-26</span>
+              </div>
+            </div>
+          </div>
+        `;
+
+        backEl.innerHTML = `
+          <div class="w-full h-full flex relative bg-white overflow-hidden">
+            <!-- Main Content -->
+            <div class="flex-1 flex flex-col justify-between p-5 pt-9">
+              <div>
+                <div class="flex items-center gap-2 mb-3">
+                  ${getThreeDotsHTML()}
+                  <span class="font-heading font-bold text-xs text-[#0B4B84] uppercase tracking-wider">Return Instructions</span>
+                </div>
+                <p class="text-[11px] text-slate-600 leading-relaxed">
+                  This is a property of <strong class="text-[#25A162]">PCIU Computer Club</strong>. If it is found, please return to the following address:
+                </p>
+                <p class="text-xs font-heading font-bold text-[#0B4B84] mt-2.5 p-3 rounded-xl bg-gradient-to-r from-[#E6F6EC]/85 via-[#DCF2F0]/75 to-[#D6E8F5]/80 border-l-4 border-[#25A162]">
+                  ${state.dept}
+                </p>
+              </div>
+
+              <!-- Official Contacts (Website & Email Only) -->
+              <div class="space-y-2.5 text-xs bg-slate-50/90 p-3.5 rounded-xl border border-[#1D9A8C]/20">
+                <div class="text-[10px] font-bold uppercase tracking-wider text-[#1D9A8C]">Official Contacts</div>
+                <p class="text-slate-700"><strong class="text-[#25A162]">Website:</strong> ${state.web}</p>
+                <p class="text-slate-700 text-[11px]"><strong class="text-[#0B4B84]">E-mail:</strong> ${state.email}</p>
+              </div>
+
+              <div class="flex items-center gap-3 p-3 rounded-2xl bg-gradient-to-r from-[#E6F6EC]/65 via-[#DCF2F0]/60 to-[#D6E8F5]/65 border border-[#1D9A8C]/35">
+                <img src="${state.qrDataUrl}" alt="QR Code" class="w-20 h-20 rounded-xl bg-white p-1 border border-[#1D9A8C]/30 shadow-sm" />
+                <div>
+                  <p class="font-heading font-bold text-xs text-[#0B4B84]">Scan QR Code</p>
+                  <p class="text-[10px] text-slate-500 mt-0.5 leading-snug">Scan the QR code to contact with us directly</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Right Vertical Accent Spine with Seamless Blend -->
+            <div class="w-1.5 h-full bg-gradient-to-b from-[#58B947] via-[#2997D6] to-[#E6F6EC]"></div>
+            <div class="w-7 h-full bg-gradient-to-b from-[#58B947] via-[#1D9A8C] to-[#0B4B84]"></div>
+          </div>
+        `;
+      }
+
+      toggleLanyardSlot();
+    }
+
+    // Escape XML special characters for safe SVG rendering
+    function escXML(str) {
+      return String(str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&apos;');
+    }
+
+    // Helper: Wrap long text into lines for SVG / PDF
+    function wrapTextLines(text, maxCharsPerLine) {
+      const words = String(text || '').split(/\s+/);
+      const lines = [];
+      let current = '';
+      words.forEach(w => {
+        if ((current + ' ' + w).trim().length <= maxCharsPerLine) {
+          current = (current + ' ' + w).trim();
+        } else {
+          if (current) lines.push(current);
+          current = w;
+        }
+      });
+      if (current) lines.push(current);
+      return lines;
+    }
+
+    // Build a 100% Pure Vector SVG string for Front or Back card
+    // Fixes all html2canvas bugs: pill text is mathematically centered, no blur circle bug, full-bleed corners
+    function buildCardSVG(side, includeForeground = true) {
+      const showSlot = document.getElementById('toggleSlot').checked;
+      const slotSVG = showSlot
+        ? `<rect x="146" y="14" width="48" height="10" rx="5" fill="#cbd5e1" opacity="0.85"/>`
+        : '';
+
+      // Embedded Club Logo for SVG
+      const renderLogoSVG = (x, y, size) => {
+        if (!includeForeground) return '';
+        if (state.clubLogo) {
+          const r = size / 2;
+          const clipId = `logoClip_${side}_${x}`;
+          return `
+            <defs><clipPath id="${clipId}"><circle cx="${x + r}" cy="${y + r}" r="${r - 1.5}"/></clipPath></defs>
+            <circle cx="${x + r}" cy="${y + r}" r="${r}" fill="#ffffff"/>
+            <image href="${state.clubLogo}" x="${x + 1.5}" y="${y + 1.5}" width="${size - 3}" height="${size - 3}" preserveAspectRatio="xMidYMid slice" clip-path="url(#${clipId})"/>
+          `;
+        }
+        const scale = size / 120;
+        return `
+          <g transform="translate(${x}, ${y}) scale(${scale})">
+            <circle cx="60" cy="60" r="58" fill="#ffffff"/>
+            <circle cx="60" cy="60" r="54" fill="#ffffff" stroke="#0B4B84" stroke-width="3"/>
+            <circle cx="60" cy="60" r="43" fill="none" stroke="#58B947" stroke-width="2" stroke-dasharray="5 2"/>
+            <path d="M36 76 L84 76 L90 83 L30 83 Z" fill="#0B4B84"/>
+            <rect x="40" y="46" width="40" height="28" rx="3" fill="#ffffff" stroke="#2997D6" stroke-width="3"/>
+            <polygon points="46,37 68,27 58,48" fill="#58B947"/>
+            <path d="M44 42 L58 50 L72 42" fill="none" stroke="#58B947" stroke-width="3" stroke-linecap="round"/>
+            <text x="60" y="59" text-anchor="middle" fill="#0B4B84" font-family="monospace" font-weight="bold" font-size="8">010110</text>
+            <text x="60" y="68" text-anchor="middle" fill="#58B947" font-family="monospace" font-weight="bold" font-size="8">010110</text>
+            <circle cx="17" cy="60" r="3.5" fill="#58B947"/>
+            <circle cx="103" cy="60" r="3.5" fill="#2997D6"/>
+            <circle cx="84" cy="72" r="4" fill="#E5A93C"/>
+          </g>
+        `;
+      };
+
+      // Embedded Member Photo for SVG
+      const renderMemberSVG = (cx, cy, r, isRoundedRect = false) => {
+        if (!includeForeground) return '';
+        const clipId = `memberClip_${side}`;
+        const shapeTag = isRoundedRect
+          ? `<rect x="${cx - r}" y="${cy - r}" width="${r * 2}" height="${r * 2}" rx="14"/>`
+          : `<circle cx="${cx}" cy="${cy}" r="${r}"/>`;
+
+        if (state.memberPhoto) {
+          return `
+            <defs><clipPath id="${clipId}">${shapeTag}</clipPath></defs>
+            <g clip-path="url(#${clipId})">
+              <rect x="${cx - r}" y="${cy - r}" width="${r * 2}" height="${r * 2}" fill="#ffffff"/>
+              <image href="${state.memberPhoto}" x="${cx - r}" y="${cy - r}" width="${r * 2}" height="${r * 2}" preserveAspectRatio="xMidYMid slice"/>
+            </g>
+          `;
+        }
+        return `
+          <defs><clipPath id="${clipId}">${shapeTag}</clipPath></defs>
+          <g clip-path="url(#${clipId})">
+            <rect x="${cx - r}" y="${cy - r}" width="${r * 2}" height="${r * 2}" fill="url(#avatarBgGrad)"/>
+            <circle cx="${cx}" cy="${cy - r * 0.18}" r="${r * 0.34}" fill="#0B4B84" opacity="0.85"/>
+            <path d="M ${cx - r * 0.62} ${cy + r * 0.95} C ${cx - r * 0.62} ${cy + r * 0.32}, ${cx + r * 0.62} ${cy + r * 0.32}, ${cx + r * 0.62} ${cy + r * 0.95} Z" fill="#0B4B84" opacity="0.85"/>
+          </g>
+        `;
+      };
+
+      const commonDefs = `
+        <defs>
+          <style>
+            @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800;900&amp;family=Plus+Jakarta+Sans:wght@500;600;700&amp;family=JetBrains+Mono:wght@600;700&amp;display=swap');
+            .svg-heading { font-family: 'Montserrat', sans-serif; }
+            .svg-body { font-family: 'Plus Jakarta Sans', sans-serif; }
+            .svg-mono { font-family: 'JetBrains Mono', monospace; }
+          </style>
+          <linearGradient id="mainGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#58B947"/>
+            <stop offset="38%" stop-color="#25A162"/>
+            <stop offset="72%" stop-color="#1D9A8C"/>
+            <stop offset="100%" stop-color="#0B4B84"/>
+          </linearGradient>
+          <linearGradient id="softUnderGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#E6F6EC"/>
+            <stop offset="50%" stop-color="#DCF2F0"/>
+            <stop offset="100%" stop-color="#D6E8F5"/>
+          </linearGradient>
+          <linearGradient id="ribbonGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#58B947"/>
+            <stop offset="55%" stop-color="#1D9A8C"/>
+            <stop offset="100%" stop-color="#2997D6"/>
+          </linearGradient>
+          <linearGradient id="pillGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#58B947"/>
+            <stop offset="50%" stop-color="#25A162"/>
+            <stop offset="100%" stop-color="#1D9A8C"/>
+          </linearGradient>
+          <linearGradient id="ringGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#58B947"/>
+            <stop offset="50%" stop-color="#1D9A8C"/>
+            <stop offset="100%" stop-color="#2997D6"/>
+          </linearGradient>
+          <linearGradient id="avatarBgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#E6F6EC"/>
+            <stop offset="50%" stop-color="#DCF2F0"/>
+            <stop offset="100%" stop-color="#D6E8F5"/>
+          </linearGradient>
+          <radialGradient id="ambientGlow" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stop-color="#58B947" stop-opacity="0.09"/>
+            <stop offset="50%" stop-color="#1D9A8C" stop-opacity="0.04"/>
+            <stop offset="100%" stop-color="#2997D6" stop-opacity="0"/>
+          </radialGradient>
+        </defs>
+      `;
+
+      // Calculate dynamic pill widths so any role or session text fits comfortably
+      const sessionPillW = Math.max(168, Math.min(235, state.session.length * 6.2 + 24));
+      const rolePillW = Math.max(124, Math.min(240, state.role.length * 9.5 + 48));
+
+      if (side === 'front') {
+        if (state.design === 1) {
+          return `
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 540" width="340" height="540">
+              ${commonDefs}
+              <rect width="340" height="540" fill="#ffffff"/>
+              <circle cx="170" cy="285" r="130" fill="url(#ambientGlow)"/>
+
+              <!-- Header Polygons -->
+              <polygon points="0,0 340,0 340,146 0,196" fill="url(#softUnderGrad)"/>
+              <polygon points="95,122 340,76 340,136 95,182" fill="#2997D6" opacity="0.28"/>
+              <polygon points="0,0 340,0 340,112 0,174" fill="url(#mainGrad)"/>
+              <polygon points="0,167 340,105 340,114 0,176" fill="url(#ribbonGrad)"/>
+              <polygon points="275,117 340,105 340,110 275,122" fill="#E5A93C"/>
+
+              <!-- Session Pill Box -->
+              <rect x="78" y="80" width="${sessionPillW}" height="20" rx="10" fill="#ffffff" fill-opacity="0.16" stroke="#ffffff" stroke-opacity="0.35" stroke-width="1"/>
+
+              ${renderLogoSVG(20, 38, 48)}
+
+              ${includeForeground ? `
+                <text x="78" y="49" fill="#E6F6EC" class="svg-mono" font-size="8.8" font-weight="600" letter-spacing="0.8">PORT CITY INTERNATIONAL UNIVERSITY</text>
+                <text x="78" y="70" fill="#ffffff" class="svg-heading" font-size="16" font-weight="900" letter-spacing="-0.2">PCIU COMPUTER CLUB</text>
+                <text x="${78 + sessionPillW / 2}" y="90.5" fill="#ffffff" class="svg-heading" font-size="8.8" font-weight="700" letter-spacing="0.7" text-anchor="middle" dominant-baseline="central">${escXML(state.session.toUpperCase())}</text>
+              ` : ''}
+
+              <!-- Center Avatar Frame -->
+              <circle cx="170" cy="236" r="73" fill="#ffffff"/>
+              <circle cx="170" cy="236" r="68" fill="url(#ringGrad)"/>
+              <circle cx="170" cy="236" r="64" fill="#ffffff"/>
+              ${renderMemberSVG(170, 236, 62, false)}
+              <circle cx="218" cy="284" r="9" fill="#ffffff"/>
+              <circle cx="218" cy="284" r="7" fill="url(#ringGrad)"/>
+
+              <!-- Role Pill Background -->
+              <rect x="${170 - rolePillW / 2}" y="362" width="${rolePillW}" height="30" rx="15" fill="url(#pillGrad)"/>
+              <circle cx="${170 - rolePillW / 2 + 18}" cy="377" r="4" fill="#E6F6EC"/>
+
+              ${includeForeground ? `
+                <text x="170" y="344" fill="#0B4B84" class="svg-heading" font-size="21" font-weight="800" text-anchor="middle">${escXML(state.name)}</text>
+                <text x="${170 + 6}" y="377.5" fill="#ffffff" class="svg-heading" font-size="11.5" font-weight="700" letter-spacing="1" text-anchor="middle" dominant-baseline="central">${escXML(state.role.toUpperCase())}</text>
+                <text x="24" y="472" fill="#25A162" class="svg-mono" font-size="10.5" font-weight="700">010110 <tspan fill="#1D9A8C">010110</tspan></text>
+              ` : ''}
+
+              <!-- Three Dots Motif -->
+              <circle cx="290" cy="468" r="5" fill="#58B947"/>
+              <circle cx="304" cy="468" r="5" fill="#2997D6"/>
+              <circle cx="317" cy="468" r="4" fill="#E5A93C"/>
+
+              <!-- Bottom Polygons -->
+              <polygon points="0,515 340,493 340,540 0,540" fill="url(#softUnderGrad)"/>
+              <polygon points="0,523 340,499 340,540 0,540" fill="url(#mainGrad)"/>
+              <polygon points="0,519 340,495 340,500 0,524" fill="url(#ribbonGrad)"/>
+
+              ${slotSVG}
+            </svg>
+          `;
+        } else if (state.design === 2) {
+          return `
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 540" width="340" height="540">
+              ${commonDefs}
+              <rect width="340" height="540" fill="#ffffff"/>
+              <circle cx="315" cy="210" r="85" fill="url(#softUnderGrad)" opacity="0.7"/>
+              <circle cx="20" cy="430" r="70" fill="url(#softUnderGrad)" opacity="0.7"/>
+
+              <!-- Curved Wave Header -->
+              <path d="M0,0 L340,0 L340,142 C245,194 110,104 0,174 Z" fill="#E6F6EC"/>
+              <path d="M0,144 C120,84 240,176 340,122 L340,140 C240,190 120,102 0,166 Z" fill="url(#ribbonGrad)" opacity="0.45"/>
+              <path d="M0,0 L340,0 L340,120 C240,170 120,85 0,152 Z" fill="url(#mainGrad)"/>
+
+              ${renderLogoSVG(44, 38, 44)}
+              ${includeForeground ? `
+                <text x="98" y="57" fill="#ffffff" class="svg-heading" font-size="15.5" font-weight="800" letter-spacing="0.4">PCIU COMPUTER CLUB</text>
+                <text x="98" y="73" fill="#E6F6EC" class="svg-body" font-size="10" font-weight="500">Port City International University</text>
+              ` : ''}
+
+              <!-- Squircle Frame -->
+              <g transform="translate(170, 224) rotate(6)"><rect x="-64" y="-64" width="128" height="128" rx="18" fill="#58B947" opacity="0.28"/></g>
+              <g transform="translate(170, 224) rotate(-6)"><rect x="-64" y="-64" width="128" height="128" rx="18" fill="#2997D6" opacity="0.28"/></g>
+              <rect x="106" y="160" width="128" height="128" rx="16" fill="#ffffff" stroke="#1D9A8C" stroke-width="1.5" stroke-opacity="0.35"/>
+              ${renderMemberSVG(170, 224, 58, true)}
+
+              <!-- Session & Role Pills -->
+              <rect x="${170 - sessionPillW / 2}" y="310" width="${sessionPillW}" height="20" rx="10" fill="url(#softUnderGrad)" stroke="#1D9A8C" stroke-opacity="0.25"/>
+              <rect x="${170 - rolePillW / 2}" y="376" width="${rolePillW}" height="28" rx="14" fill="url(#pillGrad)"/>
+
+              ${includeForeground ? `
+                <text x="170" y="320.5" fill="#0B4B84" class="svg-heading" font-size="8.8" font-weight="700" letter-spacing="1" text-anchor="middle" dominant-baseline="central">${escXML(state.session.toUpperCase())}</text>
+                <text x="170" y="359" fill="#0B4B84" class="svg-heading" font-size="21" font-weight="900" text-anchor="middle">${escXML(state.name)}</text>
+                <text x="170" y="390.5" fill="#ffffff" class="svg-heading" font-size="11.5" font-weight="700" letter-spacing="1.2" text-anchor="middle" dominant-baseline="central">${escXML(state.role.toUpperCase())}</text>
+                <text x="316" y="476" fill="#1D9A8C" class="svg-mono" font-size="9.5" font-weight="600" text-anchor="end">${escXML(state.web)}</text>
+              ` : ''}
+
+              <circle cx="28" cy="472" r="5" fill="#58B947"/>
+              <circle cx="42" cy="472" r="5" fill="#2997D6"/>
+              <circle cx="55" cy="472" r="4" fill="#E5A93C"/>
+
+              <path d="M0,510 C120,542 220,482 340,510 L340,540 L0,540 Z" fill="url(#mainGrad)"/>
+              ${slotSVG}
+            </svg>
+          `;
+        } else if (state.design === 3) {
+          return `
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 540" width="340" height="540">
+              ${commonDefs}
+              <rect width="340" height="540" fill="#F6FBF8"/>
+              <rect x="0" y="0" width="340" height="208" rx="34" fill="url(#mainGrad)"/>
+              <rect x="0" y="0" width="340" height="170" fill="url(#mainGrad)"/>
+
+              <rect x="${170 - sessionPillW / 2}" y="36" width="${sessionPillW}" height="20" rx="10" fill="#ffffff" fill-opacity="0.16" stroke="#ffffff" stroke-opacity="0.3"/>
+
+              ${includeForeground ? `
+                <text x="170" y="46.5" fill="#ffffff" class="svg-heading" font-size="8.8" font-weight="700" letter-spacing="1" text-anchor="middle" dominant-baseline="central">${escXML(state.session.toUpperCase())}</text>
+                <text x="170" y="78" fill="#ffffff" class="svg-heading" font-size="18" font-weight="900" letter-spacing="0.5" text-anchor="middle">PCIU COMPUTER CLUB</text>
+                <text x="170" y="95" fill="#E6F6EC" class="svg-body" font-size="10" font-weight="500" text-anchor="middle">Port City International University</text>
+              ` : ''}
+
+              <!-- Floating Card -->
+              <rect x="20" y="128" width="300" height="340" rx="20" fill="#ffffff" stroke="#1D9A8C" stroke-opacity="0.25"/>
+              ${renderLogoSVG(256, 106, 44)}
+
+              <circle cx="170" cy="218" r="64" fill="url(#ringGrad)"/>
+              <circle cx="170" cy="218" r="60" fill="#ffffff"/>
+              ${renderMemberSVG(170, 218, 57, false)}
+
+              <rect x="${170 - rolePillW / 2}" y="338" width="${rolePillW}" height="28" rx="14" fill="url(#softUnderGrad)" stroke="#1D9A8C" stroke-opacity="0.3"/>
+              <line x1="44" y1="418" x2="296" y2="418" stroke="#f1f5f9" stroke-width="1.5"/>
+
+              ${includeForeground ? `
+                <text x="170" y="318" fill="#0B4B84" class="svg-heading" font-size="20" font-weight="800" text-anchor="middle">${escXML(state.name)}</text>
+                <text x="170" y="352.5" fill="#1E6B32" class="svg-heading" font-size="11.5" font-weight="700" letter-spacing="1" text-anchor="middle" dominant-baseline="central">${escXML(state.role.toUpperCase())}</text>
+                <text x="292" y="442" fill="#1D9A8C" class="svg-mono" font-size="10" font-weight="700" text-anchor="end">CSE • <tspan fill="#0B4B84">PCIU</tspan></text>
+                <text x="26" y="514" fill="#25A162" class="svg-mono" font-size="10.5" font-weight="700">010110</text>
+              ` : ''}
+
+              <circle cx="50" cy="438" r="4.5" fill="#58B947"/>
+              <circle cx="63" cy="438" r="4.5" fill="#2997D6"/>
+              <circle cx="75" cy="438" r="3.8" fill="#E5A93C"/>
+
+              <rect x="218" y="506" width="96" height="8" rx="4" fill="url(#mainGrad)"/>
+              ${slotSVG}
+            </svg>
+          `;
+        } else {
+          // Design 4: Neo Sidebar
+          return `
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 540" width="340" height="540">
+              ${commonDefs}
+              <rect width="340" height="540" fill="#ffffff"/>
+              <rect x="0" y="0" width="48" height="540" fill="url(#mainGrad)"/>
+              <rect x="48" y="0" width="6" height="540" fill="url(#ringGrad)"/>
+              <rect x="20" y="28" width="8" height="48" rx="4" fill="#E6F6EC" opacity="0.9"/>
+
+              <circle cx="330" cy="40" r="75" fill="url(#softUnderGrad)" opacity="0.7"/>
+              <circle cx="330" cy="430" r="60" fill="url(#softUnderGrad)" opacity="0.65"/>
+
+              ${renderLogoSVG(74, 42, 48)}
+
+              <rect x="78" y="162" width="124" height="124" rx="18" fill="url(#ringGrad)"/>
+              <rect x="82" y="166" width="116" height="116" rx="14" fill="#ffffff"/>
+              ${renderMemberSVG(140, 224, 56, true)}
+
+              <circle cx="84" cy="316" r="4.5" fill="#58B947"/>
+              <circle cx="97" cy="316" r="4.5" fill="#2997D6"/>
+              <circle cx="109" cy="316" r="3.8" fill="#E5A93C"/>
+
+              <rect x="78" y="368" width="${rolePillW}" height="28" rx="14" fill="url(#pillGrad)"/>
+              <circle cx="94" cy="382" r="3.5" fill="#ffffff"/>
+              <line x1="74" y1="490" x2="318" y2="490" stroke="#f1f5f9" stroke-width="1.5"/>
+
+              ${includeForeground ? `
+                <text x="28" y="275" fill="#ffffff" class="svg-heading" font-size="11" font-weight="800" letter-spacing="3.5" text-anchor="middle" transform="rotate(-90 28 275)">PCIU COMPUTER CLUB</text>
+                <text x="132" y="54" fill="#25A162" class="svg-heading" font-size="8.8" font-weight="700" letter-spacing="0.8">${escXML(state.session.toUpperCase())}</text>
+                <text x="132" y="72" fill="#0B4B84" class="svg-heading" font-size="14" font-weight="900">PCIU COMPUTER CLUB</text>
+                <text x="132" y="86" fill="#64748b" class="svg-body" font-size="9.2" font-weight="500">Port City International University</text>
+                <text x="78" y="348" fill="#0B4B84" class="svg-heading" font-size="20" font-weight="900">${escXML(state.name)}</text>
+                <text x="${78 + rolePillW / 2 + 5}" y="382.5" fill="#ffffff" class="svg-heading" font-size="11" font-weight="700" letter-spacing="1" text-anchor="middle" dominant-baseline="central">${escXML(state.role.toUpperCase())}</text>
+                <text x="74" y="512" fill="#25A162" class="svg-body" font-size="10" font-weight="600">Dept. of CSE</text>
+                <text x="318" y="512" fill="#1D9A8C" class="svg-mono" font-size="9.5" font-weight="700" text-anchor="end">SESSION 2025-26</text>
+              ` : ''}
+              ${slotSVG}
+            </svg>
+          `;
+        }
+      } else {
+        // BACK SIDE SVG (Matches active design 1, 2, 3, or 4)
+        const deptLines = wrapTextLines(state.dept, 38);
+
+        if (state.design === 2) {
+          return `
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 540" width="340" height="540">
+              ${commonDefs}
+              <rect width="340" height="540" fill="#ffffff"/>
+              <circle cx="28" cy="110" r="80" fill="url(#softUnderGrad)" opacity="0.8"/>
+              <circle cx="310" cy="420" r="72" fill="url(#softUnderGrad)" opacity="0.85"/>
+
+              ${renderLogoSVG(24, 36, 40)}
+
+              <circle cx="282" cy="56" r="5" fill="#58B947"/>
+              <circle cx="296" cy="56" r="5" fill="#2997D6"/>
+              <circle cx="309" cy="56" r="4" fill="#E5A93C"/>
+
+              <!-- Return Notice Card -->
+              <rect x="24" y="102" width="292" height="106" rx="16" fill="#ffffff" stroke="#1D9A8C" stroke-opacity="0.25"/>
+              <rect x="24" y="102" width="5" height="106" rx="2.5" fill="#25A162"/>
+
+              <!-- Gradient Contact Card -->
+              <rect x="24" y="226" width="292" height="86" rx="16" fill="url(#mainGrad)"/>
+              <line x1="40" y1="269" x2="300" y2="269" stroke="#ffffff" stroke-opacity="0.2" stroke-width="1"/>
+
+              <!-- Centered QR Frame -->
+              <rect x="118" y="334" width="104" height="104" rx="16" fill="#ffffff" stroke="#1D9A8C" stroke-opacity="0.4" stroke-width="2"/>
+
+              ${includeForeground ? `
+                <text x="72" y="53" fill="#0B4B84" class="svg-heading" font-size="12" font-weight="800">PCIU COMPUTER CLUB</text>
+                <text x="72" y="67" fill="#25A162" class="svg-body" font-size="9.5" font-weight="600">Official Identity Card</text>
+
+                <text x="38" y="128" fill="#475569" class="svg-body" font-size="11" font-weight="500">This is a property of <tspan fill="#25A162" font-weight="700">PCIU Computer Club</tspan>.</text>
+                <text x="38" y="144" fill="#475569" class="svg-body" font-size="11" font-weight="500">If it is found, please return to the following address:</text>
+                ${deptLines.map((line, idx) => `<text x="38" y="${168 + idx * 16}" fill="#0B4B84" class="svg-heading" font-size="11.5" font-weight="700">${escXML(line)}</text>`).join('')}
+
+                <text x="40" y="253" fill="#E6F6EC" class="svg-heading" font-size="10" font-weight="600" letter-spacing="0.8">WEBSITE</text>
+                <text x="300" y="253" fill="#ffffff" class="svg-body" font-size="11.5" font-weight="700" text-anchor="end">${escXML(state.web)}</text>
+
+                <text x="40" y="294" fill="#E6F6EC" class="svg-heading" font-size="10" font-weight="600" letter-spacing="0.8">E-MAIL</text>
+                <text x="300" y="294" fill="#ffffff" class="svg-body" font-size="10.5" font-weight="600" text-anchor="end">${escXML(state.email)}</text>
+
+                ${state.qrDataUrl ? `<image href="${state.qrDataUrl}" x="126" y="342" width="88" height="88"/>` : ''}
+                <text x="170" y="458" fill="#0B4B84" class="svg-heading" font-size="10.5" font-weight="700" text-anchor="middle">Scan the QR code to contact with us</text>
+              ` : ''}
+
+              <path d="M0,515 C140,540 200,500 340,518 L340,540 L0,540 Z" fill="url(#mainGrad)"/>
+              ${slotSVG}
+            </svg>
+          `;
+        }
+
+        return `
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 540" width="340" height="540">
+            ${commonDefs}
+            <rect width="340" height="540" fill="#ffffff"/>
+
+            <!-- Top Angled Header -->
+            <polygon points="0,0 340,0 340,58 0,86" fill="#E6F6EC"/>
+            <polygon points="0,0 340,0 340,50 0,80" fill="url(#mainGrad)"/>
+            <polygon points="0,76 340,46 340,52 0,82" fill="url(#ribbonGrad)"/>
+
+            <!-- Return Notice Box -->
+            <rect x="24" y="98" width="292" height="106" rx="16" fill="url(#softUnderGrad)" stroke="#1D9A8C" stroke-opacity="0.28"/>
+
+            <!-- Website Card -->
+            <rect x="24" y="224" width="292" height="52" rx="12" fill="#F4FBF7" stroke="#58B947" stroke-opacity="0.3"/>
+            <rect x="36" y="236" width="28" height="28" rx="8" fill="url(#pillGrad)"/>
+
+            <!-- Email Card -->
+            <rect x="24" y="288" width="292" height="52" rx="12" fill="#EFF7FC" stroke="#2997D6" stroke-opacity="0.3"/>
+            <rect x="36" y="300" width="28" height="28" rx="8" fill="url(#mainGrad)"/>
+
+            <!-- QR Card Container -->
+            <rect x="24" y="362" width="292" height="118" rx="16" fill="#F8FAFC" stroke="#1D9A8C" stroke-opacity="0.3"/>
+            <circle cx="44" cy="392" r="4.5" fill="#58B947"/>
+            <circle cx="57" cy="392" r="4.5" fill="#2997D6"/>
+            <circle cx="69" cy="392" r="3.8" fill="#E5A93C"/>
+
+            <rect x="210" y="375" width="92" height="92" rx="12" fill="#ffffff" stroke="#1D9A8C" stroke-opacity="0.25"/>
+
+            ${includeForeground ? `
+              <text x="170" y="124" fill="#334155" class="svg-body" font-size="11" font-weight="500" text-anchor="middle">This card is the property of <tspan fill="#25A162" font-weight="700">PCIU Computer Club</tspan>.</text>
+              <text x="170" y="141" fill="#334155" class="svg-body" font-size="11" font-weight="500" text-anchor="middle">If found, please return to:</text>
+              ${deptLines.map((line, idx) => `<text x="170" y="${165 + idx * 16}" fill="#0B4B84" class="svg-heading" font-size="11.5" font-weight="700" text-anchor="middle">${escXML(line)}</text>`).join('')}
+
+              <text x="50" y="250.5" fill="#ffffff" class="svg-heading" font-size="11" font-weight="800" text-anchor="middle" dominant-baseline="central">W</text>
+              <text x="76" y="243" fill="#25A162" class="svg-heading" font-size="8.5" font-weight="700" letter-spacing="0.8">OFFICIAL WEBSITE</text>
+              <text x="76" y="261" fill="#0B4B84" class="svg-body" font-size="12" font-weight="700">${escXML(state.web)}</text>
+
+              <text x="50" y="314.5" fill="#ffffff" class="svg-heading" font-size="11" font-weight="800" text-anchor="middle" dominant-baseline="central">@</text>
+              <text x="76" y="307" fill="#0B4B84" class="svg-heading" font-size="8.5" font-weight="700" letter-spacing="0.8">OFFICIAL E-MAIL</text>
+              <text x="76" y="325" fill="#334155" class="svg-body" font-size="11" font-weight="600">${escXML(state.email)}</text>
+
+              <text x="40" y="418" fill="#0B4B84" class="svg-heading" font-size="13" font-weight="800">Scan QR Code</text>
+              <text x="40" y="435" fill="#64748b" class="svg-body" font-size="10" font-weight="500">Scan the QR code to</text>
+              <text x="40" y="449" fill="#64748b" class="svg-body" font-size="10" font-weight="500">contact with us</text>
+
+              ${state.qrDataUrl ? `<image href="${state.qrDataUrl}" x="216" y="381" width="80" height="80"/>` : ''}
+            ` : ''}
+
+            <!-- Bottom Bar -->
+            <rect x="0" y="524" width="340" height="16" fill="url(#mainGrad)"/>
+            ${slotSVG}
+          </svg>
+        `;
+      }
+    }
+
+    // Render an SVG string onto a high-resolution Canvas (scale = 4 -> 1360x2160 px)
+    function renderSVGToCanvas(svgString, scale = 4) {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+        const url = URL.createObjectURL(svgBlob);
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = 340 * scale;
+          canvas.height = 540 * scale;
+          const ctx = canvas.getContext('2d');
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          URL.revokeObjectURL(url);
+          resolve(canvas);
+        };
+        img.onerror = (err) => {
+          URL.revokeObjectURL(url);
+          reject(err);
+        };
+        img.src = url;
+      });
+    }
+
+    // Export both Front and Back cards as a 2-Page Print-Ready PDF (Zero html2canvas bugs!)
+    async function downloadPDF() {
+      const btn = document.getElementById('downloadPdfBtn');
+      const originalHTML = btn.innerHTML;
+      btn.innerHTML = `<span>Generating PDF...</span>`;
+      btn.disabled = true;
+
+      try {
+        await document.fonts.ready;
+        const { jsPDF } = window.jspdf;
+
+        const frontCanvas = await renderSVGToCanvas(buildCardSVG('front', true), 4);
+        const backCanvas = await renderSVGToCanvas(buildCardSVG('back', true), 4);
+
+        const frontImgData = frontCanvas.toDataURL('image/png');
+        const backImgData = backCanvas.toDataURL('image/png');
+
+        // Standard CR80 ID Card dimensions in mm (54mm x 85.6mm portrait)
+        const cardWidthMM = 54;
+        const cardHeightMM = 85.6;
+
+        const pdf = new jsPDF({
+          orientation: 'portrait',
+          unit: 'mm',
+          format: [cardWidthMM, cardHeightMM]
+        });
+
+        // Page 1: Front Card
+        pdf.addImage(frontImgData, 'PNG', 0, 0, cardWidthMM, cardHeightMM, undefined, 'FAST');
+
+        // Page 2: Back Card
+        pdf.addPage([cardWidthMM, cardHeightMM], 'portrait');
+        pdf.addImage(backImgData, 'PNG', 0, 0, cardWidthMM, cardHeightMM, undefined, 'FAST');
+
+        const cleanName = (state.name || 'Member').replace(/\s+/g, '_');
+        pdf.save(`PCIU_Computer_Club_ID_${cleanName}_Design${state.design}.pdf`);
+      } catch (err) {
+        console.error('PDF Export failed:', err);
+      } finally {
+        btn.innerHTML = originalHTML;
+        btn.disabled = false;
+      }
+    }
+
+    // Export a Canva-Editable Multi-Layer PDF (Background + Separate Images + Native Editable Text Boxes)
+    async function downloadCanvaEditablePDF() {
+      const btn = document.getElementById('canvaPdfBtn');
+      const originalHTML = btn.innerHTML;
+      btn.innerHTML = `<span>Building Editable Canva Layers...</span>`;
+      btn.disabled = true;
+
+      try {
+        const { jsPDF } = window.jspdf;
+        // Use 340 x 540 pt (1:1 with our SVG coordinate system so every layer aligns with sub-pixel accuracy in Canva!)
+        const pdf = new jsPDF({
+          orientation: 'portrait',
+          unit: 'pt',
+          format: [340, 540]
+        });
+
+        // 1. Render pure vector backgrounds (without text/photos)
+        const frontBgCanvas = await renderSVGToCanvas(buildCardSVG('front', false), 3);
+        const backBgCanvas = await renderSVGToCanvas(buildCardSVG('back', false), 3);
+
+        // Also prepare default club logo & avatar as PNG images so Canva treats them as movable image layers
+        const logoSvgOnly = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="240" height="240">
+          <circle cx="60" cy="60" r="58" fill="#ffffff"/>
+          <circle cx="60" cy="60" r="54" fill="#ffffff" stroke="#0B4B84" stroke-width="3"/>
+          <circle cx="60" cy="60" r="43" fill="none" stroke="#58B947" stroke-width="2" stroke-dasharray="5 2"/>
+          <path d="M36 76 L84 76 L90 83 L30 83 Z" fill="#0B4B84"/>
+          <rect x="40" y="46" width="40" height="28" rx="3" fill="#ffffff" stroke="#2997D6" stroke-width="3"/>
+          <polygon points="46,37 68,27 58,48" fill="#58B947"/>
+          <path d="M44 42 L58 50 L72 42" fill="none" stroke="#58B947" stroke-width="3" stroke-linecap="round"/>
+        </svg>`;
+        const defaultLogoCanvas = await renderSVGToCanvas(logoSvgOnly, 1);
+        const logoImgData = state.clubLogoCircle || defaultLogoCanvas.toDataURL('image/png');
+
+        // ================= PAGE 1: FRONT (CANVA LAYERED) =================
+        pdf.addImage(frontBgCanvas.toDataURL('image/png'), 'PNG', 0, 0, 340, 540);
+        pdf.addImage(logoImgData, 'PNG', 20, 38, 48, 48);
+
+        if (state.memberPhotoCircle) {
+          pdf.addImage(state.memberPhotoCircle, 'PNG', 108, 174, 124, 124);
+        }
+
+        // Editable Text Boxes for Canva
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(8.5);
+        pdf.setTextColor(230, 246, 236);
+        pdf.text('PORT CITY INTERNATIONAL UNIVERSITY', 78, 49);
+
+        pdf.setFontSize(15.5);
+        pdf.setTextColor(255, 255, 255);
+        pdf.text('PCIU COMPUTER CLUB', 78, 69);
+
+        pdf.setFontSize(8.5);
+        pdf.text(state.session.toUpperCase(), 170, 93, { align: 'center' });
+
+        pdf.setFontSize(20);
+        pdf.setTextColor(11, 75, 132);
+        pdf.text(state.name, 170, 344, { align: 'center' });
+
+        pdf.setFontSize(11);
+        pdf.setTextColor(255, 255, 255);
+        pdf.text(state.role.toUpperCase(), 176, 381, { align: 'center' });
+
+        pdf.setFontSize(10);
+        pdf.setTextColor(37, 161, 98);
+        pdf.text('010110 010110', 24, 472);
+
+        // ================= PAGE 2: BACK (CANVA LAYERED) =================
+        pdf.addPage([340, 540], 'portrait');
+        pdf.addImage(backBgCanvas.toDataURL('image/png'), 'PNG', 0, 0, 340, 540);
+
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(10.5);
+        pdf.setTextColor(51, 65, 85);
+        pdf.text('This card is the property of PCIU Computer Club.', 170, 124, { align: 'center' });
+        pdf.text('If found, please return to:', 170, 140, { align: 'center' });
+
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(11);
+        pdf.setTextColor(11, 75, 132);
+        const deptLines = wrapTextLines(state.dept, 38);
+        deptLines.forEach((line, idx) => {
+          pdf.text(line, 170, 164 + idx * 15, { align: 'center' });
+        });
+
+        pdf.setFontSize(8.5);
+        pdf.setTextColor(37, 161, 98);
+        pdf.text('OFFICIAL WEBSITE', 76, 243);
+        pdf.setFontSize(11.5);
+        pdf.setTextColor(11, 75, 132);
+        pdf.text(state.web, 76, 260);
+
+        pdf.setFontSize(8.5);
+        pdf.setTextColor(11, 75, 132);
+        pdf.text('OFFICIAL E-MAIL', 76, 307);
+        pdf.setFontSize(10.5);
+        pdf.setTextColor(51, 65, 85);
+        pdf.text(state.email, 76, 324);
+
+        pdf.setFontSize(12.5);
+        pdf.setTextColor(11, 75, 132);
+        pdf.text('Scan QR Code', 40, 418);
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(9.5);
+        pdf.setTextColor(100, 116, 139);
+        pdf.text('Scan the QR code to contact with us', 40, 435);
+
+        if (state.qrDataUrl) {
+          pdf.addImage(state.qrDataUrl, 'PNG', 216, 381, 80, 80);
+        }
+
+        const cleanName = (state.name || 'Member').replace(/\s+/g, '_');
+        pdf.save(`PCIU_ID_${cleanName}_Canva_Editable.pdf`);
+        closeCanvaModal();
+      } catch (err) {
+        console.error('Canva Editable PDF failed:', err);
+      } finally {
+        btn.innerHTML = originalHTML;
+        btn.disabled = false;
+      }
+    }
+
+    // Download standalone Front & Back .SVG files for Canva / Illustrator / Figma
+    function downloadCanvaSVGs() {
+      const cleanName = (state.name || 'Member').replace(/\s+/g, '_');
+      ['front', 'back'].forEach((side, idx) => {
+        setTimeout(() => {
+          const svgStr = buildCardSVG(side, true);
+          const blob = new Blob([svgStr], { type: 'image/svg+xml;charset=utf-8' });
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.download = `PCIU_ID_${cleanName}_${side.toUpperCase()}_Design${state.design}.svg`;
+          link.href = url;
+          link.click();
+          setTimeout(() => URL.revokeObjectURL(url), 1000);
+        }, idx * 350);
+      });
+      closeCanvaModal();
+    }
+
+    // Export both Front and Back cards as crisp high-resolution PNG files
+    async function downloadBothCards() {
+      const btn = document.getElementById('downloadBtn');
+      const originalText = btn.innerHTML;
+      btn.innerHTML = `<span>Rendering PNGs...</span>`;
+      btn.disabled = true;
+
+      try {
+        await document.fonts.ready;
+        const frontCanvas = await renderSVGToCanvas(buildCardSVG('front', true), 3);
+        const frontLink = document.createElement('a');
+        frontLink.download = `PCIU_ID_Front_Design${state.design}.png`;
+        frontLink.href = frontCanvas.toDataURL('image/png');
+        frontLink.click();
+
+        await new Promise(r => setTimeout(r, 350));
+
+        const backCanvas = await renderSVGToCanvas(buildCardSVG('back', true), 3);
+        const backLink = document.createElement('a');
+        backLink.download = `PCIU_ID_Back_Design${state.design}.png`;
+        backLink.href = backCanvas.toDataURL('image/png');
+        backLink.click();
+      } catch (err) {
+        console.error('Export failed:', err);
+      } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+      }
+    }
+
+    // Initialize on load
+    window.addEventListener('DOMContentLoaded', () => {
+      updateQR();
+      renderCards();
+    });
+  </script>
+</body>
+</html>
